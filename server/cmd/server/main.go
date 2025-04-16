@@ -39,7 +39,7 @@ func main() {
 	snippetHandler.RegisterRoutes(mux)
 
 	// Wrap mux with global-level middleware
-	handler := corsMiddleware(mux)
+	handler := corsMiddleware(logRequestsMiddleware(mux, logger))
 
 	server := http.Server{
 		Addr:         fmt.Sprintf(":%d", *_port),
@@ -96,6 +96,15 @@ func corsMiddleware(next http.Handler) http.Handler {
 			return
 		}
 
+		next.ServeHTTP(w, r)
+	})
+}
+
+// logRequestsMiddleware logs each request's method and path to logger
+func logRequestsMiddleware(next http.Handler, logger *zap.Logger) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		sugar := logger.Sugar()
+		sugar.Infow("received request", "method", r.Method, "path", r.URL.Path)
 		next.ServeHTTP(w, r)
 	})
 }
