@@ -34,6 +34,7 @@ func (s *MemoryStore) CreateSnippet(snippet *models.Snippet) error {
 	defer s.mutex.Unlock()
 
 	s.snippets[snippet.ID] = snippet
+
 	return nil
 }
 
@@ -46,6 +47,7 @@ func (s *MemoryStore) GetSnippet(id string) (*models.Snippet, error) {
 	if !ok {
 		return nil, ErrSnippetNotFound
 	}
+
 	return snippet, nil
 }
 
@@ -84,6 +86,7 @@ func (s *MemoryStore) UpdateSnippet(id string, updates map[string]any) (*models.
 	}
 
 	snippet.UpdatedAt = time.Now()
+
 	return snippet, nil
 }
 
@@ -97,6 +100,7 @@ func (s *MemoryStore) DeleteSnippet(id string) error {
 	}
 
 	delete(s.snippets, id)
+
 	return nil
 }
 
@@ -113,6 +117,7 @@ func (s *MemoryStore) ListSnippets(tags []string) []*models.Snippet {
 		for _, snippet := range s.snippets {
 			results = append(results, snippet)
 		}
+
 		return results
 	}
 
@@ -152,6 +157,7 @@ func hasAnyTag(snippet *models.Snippet, tags []string) bool {
 			return true
 		}
 	}
+
 	return false
 }
 

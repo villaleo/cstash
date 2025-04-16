@@ -23,7 +23,11 @@ func main() {
 		fmt.Fprintf(os.Stderr, "failed to configure logger: %s\n", err)
 		os.Exit(1)
 	}
-	defer logger.Sync()
+	defer func() {
+		if err := logger.Sync(); err != nil {
+			fmt.Fprintf(os.Stderr, "failed to sync logger: %s", err)
+		}
+	}()
 
 	var (
 		store          = storage.NewMemoryStore()

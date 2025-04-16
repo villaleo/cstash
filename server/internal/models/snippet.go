@@ -50,6 +50,7 @@ func (s *Snippet) RemoveTag(tag string) {
 		if t == tag {
 			s.Tags = slices.Delete(s.Tags, i, i+1)
 			s.UpdatedAt = time.Now()
+
 			return
 		}
 	}
