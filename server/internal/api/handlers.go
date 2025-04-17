@@ -100,6 +100,11 @@ func (h *SnippetHandler) ListSnippets(w http.ResponseWriter, r *http.Request) {
 	results = h.store.ListSnippets(tagsQuery)
 	sugar.Debugw("fetched snippets", "count", len(results), "withTags", tagsQuery)
 
+	// If no results were returned from a non-nil query, send a 404 status code
+	if results == nil && tagsQuery != nil {
+		w.WriteHeader(http.StatusNotFound)
+	}
+
 	if err := json.NewEncoder(w).Encode(results); err != nil {
 		sugar.Error(err)
 		http.Error(w, ErrInternal.Error(), http.StatusInternalServerError)
@@ -181,7 +186,7 @@ func (h *SnippetHandler) UpdateSnippet(w http.ResponseWriter, r *http.Request) {
 	snippet.ID = snippetId
 	snippet.UpdatedAt = time.Now()
 
-	sugar.Debugw("finished updating", "snippet", snippet)
+	sugar.Debugw("finished updating", "snippet.id", snippetId)
 
 	if err := json.NewEncoder(w).Encode(snippet); err != nil {
 		sugar.Error(err)
