@@ -53,7 +53,7 @@ func (s *MemoryStore) GetSnippet(id string) (*models.Snippet, error) {
 
 	snippet, ok := s.snippets[id]
 	if !ok {
-		sugar.Debugw("store: snippet not found", "snippet.id", snippet.ID)
+		sugar.Debugw("store: snippet not found", "snippet.id", id)
 		return nil, ErrSnippetNotFound
 	}
 
