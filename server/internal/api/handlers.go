@@ -127,7 +127,51 @@ func (h *SnippetHandler) GetSnippet(w http.ResponseWriter, r *http.Request) {
 }
 
 // UpdateSnippet handles updating an existing snippet
-func (h *SnippetHandler) UpdateSnippet(w http.ResponseWriter, r *http.Request) {}
+func (h *SnippetHandler) UpdateSnippet(w http.ResponseWriter, r *http.Request) {
+	w.Header().Add("Content-Type", "application/json")
+
+	var (
+		snippetId = r.PathValue("id")
+		updates   = make(map[string]any, 10)
+		err       error
+		sugar     = h.logger.Sugar()
+	)
+
+	if err := decodeInto(r.Body, &updates); err != nil {
+		http.Error(w, ErrInternal.Error(), http.StatusInternalServerError)
+		sugar.Error(err)
+
+		return
+	}
+
+	snippet, err := h.store.UpdateSnippet(snippetId, updates)
+	if err != nil {
+		switch {
+		case errors.Is(err, storage.ErrSnippetNotFound):
+			sugar.Debug(err)
+			http.Error(w, err.Error(), http.StatusNotFound)
+
+			return
+		default:
+			sugar.Error(err)
+			http.Error(w, ErrInternal.Error(), http.StatusInternalServerError)
+
+			return
+		}
+	}
+
+	snippet.ID = snippetId
+	snippet.UpdatedAt = time.Now()
+
+	sugar.Debugw("finished updating", "snippet", snippet)
+
+	if err := json.NewEncoder(w).Encode(snippet); err != nil {
+		sugar.Error(err)
+		http.Error(w, ErrInternal.Error(), http.StatusInternalServerError)
+
+		return
+	}
+}
 
 // DeleteSnippet handles deleting a snippet
 func (h *SnippetHandler) DeleteSnippet(w http.ResponseWriter, r *http.Request) {}

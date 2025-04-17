@@ -29,7 +29,7 @@ func main() {
 	defer syncLogger(logger)
 
 	var (
-		store          = storage.NewMemoryStore()
+		store          = storage.NewMemoryStore(logger)
 		snippetHandler = api.NewSnippetHandler(store, logger)
 		mux            = http.NewServeMux()
 	)

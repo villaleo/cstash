@@ -9,6 +9,7 @@ import (
 	"slices"
 
 	"github.com/villaleo/cstash/internal/models"
+	"go.uber.org/zap"
 )
 
 var (
@@ -19,12 +20,14 @@ var (
 type MemoryStore struct {
 	snippets map[string]*models.Snippet
 	mutex    sync.RWMutex
+	logger   *zap.Logger
 }
 
 // NewMemoryStore creates a new in-memory store
-func NewMemoryStore() *MemoryStore {
+func NewMemoryStore(logger *zap.Logger) *MemoryStore {
 	return &MemoryStore{
 		snippets: make(map[string]*models.Snippet),
+		logger:   logger,
 	}
 }
 
@@ -53,13 +56,18 @@ func (s *MemoryStore) GetSnippet(id string) (*models.Snippet, error) {
 
 // UpdateSnippet updates an existing snippet
 func (s *MemoryStore) UpdateSnippet(id string, updates map[string]any) (*models.Snippet, error) {
+	sugar := s.logger.Sugar()
+
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 
 	snippet, ok := s.snippets[id]
 	if !ok {
+		sugar.Debugw("snippet not found", "snippet.id", id)
 		return nil, ErrSnippetNotFound
 	}
+
+	sugar.Debugw("updating snippet", "snippet.id", id, "updates", updates)
 
 	if title, ok := updates["title"].(string); ok {
 		snippet.Title = title
@@ -77,8 +85,17 @@ func (s *MemoryStore) UpdateSnippet(id string, updates map[string]any) (*models.
 		snippet.Language = language
 	}
 
-	if tags, ok := updates["tags"].([]string); ok {
-		snippet.Tags = tags
+	// Check for the inerface{} first, then type cast to []string
+	if tagsInterface, ok := updates["tags"]; ok {
+		if tagsSlice, ok := tagsInterface.([]any); ok {
+			tags := make([]string, len(tagsSlice))
+			for i, t := range tagsSlice {
+				if str, ok := t.(string); ok {
+					tags[i] = str
+				}
+			}
+			snippet.Tags = tags
+		}
 	}
 
 	if isFavorite, ok := updates["isFavorite"].(bool); ok {
