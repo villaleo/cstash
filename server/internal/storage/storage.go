@@ -25,6 +25,8 @@ type MemoryStore struct {
 
 // NewMemoryStore creates a new in-memory store
 func NewMemoryStore(logger *zap.Logger) *MemoryStore {
+	logger.Sugar().Debug("memory store initialized")
+
 	return &MemoryStore{
 		snippets: make(map[string]*models.Snippet),
 		logger:   logger,
@@ -36,6 +38,7 @@ func (s *MemoryStore) CreateSnippet(snippet *models.Snippet) error {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 
+	s.logger.Sugar().Debugw("store: snippet saved", "snippet.id", snippet.ID)
 	s.snippets[snippet.ID] = snippet
 
 	return nil
@@ -43,13 +46,18 @@ func (s *MemoryStore) CreateSnippet(snippet *models.Snippet) error {
 
 // GetSnippet retrieves a snippet by ID
 func (s *MemoryStore) GetSnippet(id string) (*models.Snippet, error) {
+	sugar := s.logger.Sugar()
+
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
 
 	snippet, ok := s.snippets[id]
 	if !ok {
+		sugar.Debugw("store: snippet not found", "snippet.id", snippet.ID)
 		return nil, ErrSnippetNotFound
 	}
+
+	sugar.Debugw("store: snippet retreived", "snippet.id", snippet.ID)
 
 	return snippet, nil
 }
@@ -63,11 +71,11 @@ func (s *MemoryStore) UpdateSnippet(id string, updates map[string]any) (*models.
 
 	snippet, ok := s.snippets[id]
 	if !ok {
-		sugar.Debugw("snippet not found", "snippet.id", id)
+		sugar.Debugw("store: snippet not found", "snippet.id", id)
 		return nil, ErrSnippetNotFound
 	}
 
-	sugar.Debugw("updating snippet", "snippet.id", id, "updates", updates)
+	sugar.Debugw("store: updating snippet", "snippet.id", id, "updates", updates)
 
 	if title, ok := updates["title"].(string); ok {
 		snippet.Title = title
@@ -103,19 +111,24 @@ func (s *MemoryStore) UpdateSnippet(id string, updates map[string]any) (*models.
 	}
 
 	snippet.UpdatedAt = time.Now()
+	sugar.Debugw("store: snippet updated", "snippet.id", snippet.ID, "updates", updates)
 
 	return snippet, nil
 }
 
 // DeleteSnippet removes a snippet from the store
 func (s *MemoryStore) DeleteSnippet(id string) error {
+	sugar := s.logger.Sugar()
+
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 
 	if _, ok := s.snippets[id]; !ok {
+		sugar.Debugw("store: snippet not found", "snippet.id", id)
 		return ErrSnippetNotFound
 	}
 
+	sugar.Debugw("store: deleted snippet", "snippet.id", id)
 	delete(s.snippets, id)
 
 	return nil
@@ -123,6 +136,8 @@ func (s *MemoryStore) DeleteSnippet(id string) error {
 
 // ListSnippets returns all snippets, optionally filtered by tags
 func (s *MemoryStore) ListSnippets(tags []string) []*models.Snippet {
+	sugar := s.logger.Sugar()
+
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
 
@@ -135,6 +150,8 @@ func (s *MemoryStore) ListSnippets(tags []string) []*models.Snippet {
 			results = append(results, snippet)
 		}
 
+		sugar.Debugw("store: fetched all snippets", "count", len(s.snippets))
+
 		return results
 	}
 
@@ -145,11 +162,15 @@ func (s *MemoryStore) ListSnippets(tags []string) []*models.Snippet {
 		}
 	}
 
+	sugar.Debugw("store: fetched snippets", "count", len(results), "withTags", tags)
+
 	return results
 }
 
 // SearchSnippets searches snippets by title or content
 func (s *MemoryStore) SearchSnippets(query string) []*models.Snippet {
+	sugar := s.logger.Sugar()
+
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
 
@@ -163,6 +184,8 @@ func (s *MemoryStore) SearchSnippets(query string) []*models.Snippet {
 			results = append(results, snippet)
 		}
 	}
+
+	sugar.Debugw("store: fetched snippets", "count", len(results), "query", query)
 
 	return results
 }
