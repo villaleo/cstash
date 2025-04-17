@@ -88,7 +88,25 @@ func (h *SnippetHandler) CreateSnippet(w http.ResponseWriter, r *http.Request) {
 }
 
 // ListSnippets handles listing all snippets with optional tag filtering
-func (h *SnippetHandler) ListSnippets(w http.ResponseWriter, r *http.Request) {}
+func (h *SnippetHandler) ListSnippets(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+
+	var (
+		tagsQuery = r.URL.Query()["tags"]
+		results   []*models.Snippet
+		sugar     = h.logger.Sugar()
+	)
+
+	results = h.store.ListSnippets(tagsQuery)
+	sugar.Debugw("fetched snippets", "count", len(results), "withTags", tagsQuery)
+
+	if err := json.NewEncoder(w).Encode(results); err != nil {
+		sugar.Error(err)
+		http.Error(w, ErrInternal.Error(), http.StatusInternalServerError)
+
+		return
+	}
+}
 
 // GetSnippet handles retrieving a snippet by ID
 func (h *SnippetHandler) GetSnippet(w http.ResponseWriter, r *http.Request) {
