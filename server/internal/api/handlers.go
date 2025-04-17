@@ -197,7 +197,30 @@ func (h *SnippetHandler) UpdateSnippet(w http.ResponseWriter, r *http.Request) {
 }
 
 // DeleteSnippet handles deleting a snippet
-func (h *SnippetHandler) DeleteSnippet(w http.ResponseWriter, r *http.Request) {}
+func (h *SnippetHandler) DeleteSnippet(w http.ResponseWriter, r *http.Request) {
+	var (
+		id    = r.PathValue("id")
+		sugar = h.logger.Sugar()
+	)
+
+	if err := h.store.DeleteSnippet(id); err != nil {
+		switch {
+		case errors.Is(err, storage.ErrSnippetNotFound):
+			sugar.Debugw(err.Error())
+			http.Error(w, err.Error(), http.StatusNotFound)
+
+			return
+		default:
+			sugar.Error(err)
+			http.Error(w, ErrInternal.Error(), http.StatusInternalServerError)
+
+			return
+		}
+	}
+
+	sugar.Debugw("snippet deleted", "snippet.id", id)
+	w.WriteHeader(http.StatusNoContent)
+}
 
 // SearchSnippets handles searching snippets
 func (h *SnippetHandler) SearchSnippets(w http.ResponseWriter, r *http.Request) {}
