@@ -1,10 +1,13 @@
 package main
 
 import (
+	"errors"
 	"flag"
 	"fmt"
 	"net/http"
 	"os"
+	"os/signal"
+	"syscall"
 	"time"
 
 	"github.com/villaleo/cstash/internal/api"
@@ -23,17 +26,12 @@ func main() {
 		fmt.Fprintf(os.Stderr, "failed to configure logger: %s\n", err)
 		os.Exit(1)
 	}
-	defer func() {
-		if err := logger.Sync(); err != nil {
-			fmt.Fprintf(os.Stderr, "failed to sync logger: %s", err)
-		}
-	}()
+	defer syncLogger(logger)
 
 	var (
 		store          = storage.NewMemoryStore()
 		snippetHandler = api.NewSnippetHandler(store, logger)
 		mux            = http.NewServeMux()
-		sugar          = logger.Sugar()
 	)
 
 	snippetHandler.RegisterRoutes(mux)
@@ -41,7 +39,7 @@ func main() {
 	// Wrap mux with global-level middleware
 	handler := corsMiddleware(logRequestsMiddleware(mux, logger))
 
-	server := http.Server{
+	server := &http.Server{
 		Addr:         fmt.Sprintf(":%d", *_port),
 		Handler:      handler,
 		ReadTimeout:  10 * time.Second,
@@ -49,10 +47,7 @@ func main() {
 		IdleTimeout:  120 * time.Second,
 	}
 
-	sugar.Infof("server started on port %d", *_port)
-
-	err = server.ListenAndServe()
-	sugar.Infow("server stopped", "error", err)
+	runServer(server, logger)
 }
 
 // configureLogger creates a new ready-to-use logger
@@ -107,4 +102,44 @@ func logRequestsMiddleware(next http.Handler, logger *zap.Logger) http.Handler {
 		sugar.Infow("received request", "method", r.Method, "path", r.URL.Path)
 		next.ServeHTTP(w, r)
 	})
+}
+
+func runServer(server *http.Server, logger *zap.Logger) {
+	var (
+		sugar         = logger.Sugar()
+		interruptChan = make(chan os.Signal, 1)
+		serverErrChan = make(chan error, 1)
+	)
+
+	sugar.Infof("server started on port %d", *_port)
+
+	// Relay interrupt signals to interruptChan
+	signal.Notify(interruptChan, os.Interrupt, syscall.SIGTERM)
+
+	run := func() {
+		// ListenAndServe will always return a non-nil error
+		if err := server.ListenAndServe(); errors.Is(err, http.ErrServerClosed) {
+			serverErrChan <- err
+		}
+		close(serverErrChan)
+	}
+
+	go run()
+
+	// Block until either the server is interrupted or receives an error
+	select {
+	case <-interruptChan:
+		sugar.Info("server stopped")
+		os.Exit(0)
+	case err := <-serverErrChan:
+		sugar.Errorf("server received an error: %s", err)
+		os.Exit(1)
+	}
+}
+
+// syncLogger flushes any unclosed files
+func syncLogger(logger *zap.Logger) {
+	if err := logger.Sync(); err != nil {
+		fmt.Fprintf(os.Stderr, "failed to sync logger: %s", err)
+	}
 }
