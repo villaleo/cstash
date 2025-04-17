@@ -49,6 +49,7 @@ func (h *SnippetHandler) CreateSnippet(w http.ResponseWriter, r *http.Request) {
 	var (
 		newSnippet models.Snippet
 		sugar      = h.logger.Sugar()
+		response   map[string]any
 	)
 
 	if err := decodeInto(r.Body, &newSnippet); err != nil {
@@ -73,9 +74,17 @@ func (h *SnippetHandler) CreateSnippet(w http.ResponseWriter, r *http.Request) {
 
 	sugar.Debugw("snippet created", "snippet.id", newSnippet.ID)
 	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(map[string]any{
+
+	response = map[string]any{
 		"id": newSnippet.ID,
-	})
+	}
+
+	if err := json.NewEncoder(w).Encode(response); err != nil {
+		sugar.Error(err)
+		http.Error(w, ErrInternal.Error(), http.StatusInternalServerError)
+
+		return
+	}
 }
 
 // ListSnippets handles listing all snippets with optional tag filtering
@@ -97,16 +106,24 @@ func (h *SnippetHandler) GetSnippet(w http.ResponseWriter, r *http.Request) {
 		case errors.Is(err, storage.ErrSnippetNotFound):
 			sugar.Debug(err.Error())
 			http.Error(w, err.Error(), http.StatusNotFound)
+
 			return
 		default:
 			sugar.Error(err)
 			http.Error(w, ErrInternal.Error(), http.StatusInternalServerError)
+
 			return
 		}
 	}
 
 	sugar.Debugw("fetched snippet", "count", 1)
-	json.NewEncoder(w).Encode(snippet)
+
+	if err := json.NewEncoder(w).Encode(snippet); err != nil {
+		sugar.Error(err)
+		http.Error(w, ErrInternal.Error(), http.StatusInternalServerError)
+
+		return
+	}
 }
 
 // UpdateSnippet handles updating an existing snippet
