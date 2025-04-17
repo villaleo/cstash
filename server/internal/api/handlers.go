@@ -1,10 +1,21 @@
 package api
 
 import (
+	"encoding/json"
+	"errors"
+	"fmt"
+	"io"
 	"net/http"
+	"time"
 
+	"github.com/villaleo/cstash/internal/auth"
+	"github.com/villaleo/cstash/internal/models"
 	"github.com/villaleo/cstash/internal/storage"
 	"go.uber.org/zap"
+)
+
+var (
+	ErrInternal = errors.New("an internal server error occurred")
 )
 
 // SnippetHandler handles snippet-related API requests
@@ -32,13 +43,71 @@ func (h *SnippetHandler) RegisterRoutes(mux *http.ServeMux) {
 }
 
 // CreateSnippet handles creating a new snippet
-func (h *SnippetHandler) CreateSnippet(w http.ResponseWriter, r *http.Request) {}
+func (h *SnippetHandler) CreateSnippet(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application.json")
+
+	var (
+		newSnippet models.Snippet
+		sugar      = h.logger.Sugar()
+	)
+
+	if err := decodeInto(r.Body, &newSnippet); err != nil {
+		e := fmt.Errorf("bad request: %w", err)
+		sugar.Debug(e)
+		http.Error(w, e.Error(), http.StatusBadRequest)
+
+		return
+	}
+
+	// Ensure the new snippet is assigned an ID and the times are set
+	newSnippet.ID = auth.NewSecureID()
+	newSnippet.CreatedAt = time.Now()
+	newSnippet.UpdatedAt = time.Now()
+
+	if err := h.store.CreateSnippet(&newSnippet); err != nil {
+		sugar.Error(err)
+		http.Error(w, ErrInternal.Error(), http.StatusInternalServerError)
+
+		return
+	}
+
+	sugar.Debugw("snippet created", "snippet.id", newSnippet.ID)
+	w.WriteHeader(http.StatusCreated)
+	json.NewEncoder(w).Encode(map[string]any{
+		"id": newSnippet.ID,
+	})
+}
 
 // ListSnippets handles listing all snippets with optional tag filtering
 func (h *SnippetHandler) ListSnippets(w http.ResponseWriter, r *http.Request) {}
 
 // GetSnippet handles retrieving a snippet by ID
-func (h *SnippetHandler) GetSnippet(w http.ResponseWriter, r *http.Request) {}
+func (h *SnippetHandler) GetSnippet(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+
+	var (
+		snippetId = r.PathValue("id")
+		sugar     = h.logger.Sugar()
+	)
+
+	snippet, err := h.store.GetSnippet(snippetId)
+
+	if err != nil {
+		switch {
+		case errors.Is(err, storage.ErrSnippetNotFound):
+			sugar.Debug(err.Error())
+			http.Error(w, err.Error(), http.StatusNotFound)
+			return
+		default:
+			sugar.Error(err)
+			http.Error(w, ErrInternal.Error(), http.StatusInternalServerError)
+			return
+		}
+	}
+
+	sugar.Debugw("fetched snippet", "count", 1)
+	json.NewEncoder(w).Encode(snippet)
+}
 
 // UpdateSnippet handles updating an existing snippet
 func (h *SnippetHandler) UpdateSnippet(w http.ResponseWriter, r *http.Request) {}
@@ -48,3 +117,17 @@ func (h *SnippetHandler) DeleteSnippet(w http.ResponseWriter, r *http.Request) {
 
 // SearchSnippets handles searching snippets
 func (h *SnippetHandler) SearchSnippets(w http.ResponseWriter, r *http.Request) {}
+
+// decodeInto tries to decode r into val using json.Decode
+func decodeInto(r io.ReadCloser, val any) error {
+	defer r.Close()
+
+	decoder := json.NewDecoder(r)
+	decoder.DisallowUnknownFields()
+
+	if err := decoder.Decode(&val); err != nil {
+		return err
+	}
+
+	return nil
+}

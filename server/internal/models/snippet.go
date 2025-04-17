@@ -4,7 +4,7 @@ import (
 	"slices"
 	"time"
 
-	"github.com/google/uuid"
+	"github.com/villaleo/cstash/internal/auth"
 )
 
 // Snippet represents a code snippet with metadata
@@ -24,7 +24,7 @@ type Snippet struct {
 func NewSnippet(title, content, language string) *Snippet {
 	now := time.Now()
 	return &Snippet{
-		ID:         uuid.New().String(),
+		ID:         auth.NewSecureID(),
 		Title:      title,
 		Content:    content,
 		Language:   language,
