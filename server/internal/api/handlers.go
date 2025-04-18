@@ -223,7 +223,32 @@ func (h *SnippetHandler) DeleteSnippet(w http.ResponseWriter, r *http.Request) {
 }
 
 // SearchSnippets handles searching snippets
-func (h *SnippetHandler) SearchSnippets(w http.ResponseWriter, r *http.Request) {}
+func (h *SnippetHandler) SearchSnippets(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+
+	var (
+		query   = r.URL.Query().Get("q")
+		results []*models.Snippet
+		sugar   = h.logger.Sugar()
+	)
+
+	results = h.store.SearchSnippets(query)
+	
+	if results == nil && query != "" {
+		err := errors.New("snippets not found")
+		sugar.Debug(err.Error(), "query", query)
+		http.Error(w, err.Error(), http.StatusNotFound)
+
+		return
+	}
+
+	if err := json.NewEncoder(w).Encode(results); err != nil {
+		sugar.Error(err)
+		http.Error(w, ErrInternal.Error(), http.StatusInternalServerError)
+
+		return
+	}
+}
 
 // decodeInto tries to decode r into val using json.Decode
 func decodeInto(r io.ReadCloser, val any) error {
