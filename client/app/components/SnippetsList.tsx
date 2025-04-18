@@ -37,16 +37,14 @@ export default function SnippetsList({ tags }: SnippetsListProps) {
     fetchSnippets();
   }, []);
 
-  if (loading)
+  if (loading) {
     return (
       <p className="text-gray-500 text-center py-8">Loading snippets...</p>
     );
+  }
 
-  if (error)
+  if (error) {
     return <p className="text-red-500 text-center py-8">Error: {error}</p>;
-
-  function formatDate(date: Date): string {
-    return new Date(date).toDateString();
   }
 
   return (
@@ -58,43 +56,50 @@ export default function SnippetsList({ tags }: SnippetsListProps) {
       ) : (
         <ul className="space-y-4">
           {snippets.map((snippet) => (
-            <li
-              key={snippet.id}
-              className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow duration-200"
-            >
-              <div className="flex justify-between items-start">
-                <h2 className="text-lg font-medium text-gray-800">
-                  {snippet.title}
-                  {snippet.isFavorite && (
-                    <span className="text-yellow-500 ml-2">★</span>
-                  )}
-                </h2>
-                <span className="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded">
-                  {snippet.language}
-                </span>
-              </div>
-
-              <p className="text-gray-600 mt-2">{snippet.description}</p>
-
-              <div className="mt-4 flex justify-between items-center">
-                <div className="flex flex-wrap gap-2">
-                  {snippet.tags.map((tag) => (
-                    <span
-                      key={tag}
-                      className="bg-gray-100 text-gray-600 text-xs px-2 py-1 rounded"
-                    >
-                      {tag}
-                    </span>
-                  ))}
-                </div>
-                <span className="text-gray-400 text-sm">
-                  {formatDate(snippet.createdAt)}
-                </span>
-              </div>
-            </li>
+            <SnippetListItem key={snippet.id} snippet={snippet} />
           ))}
         </ul>
       )}
     </div>
   );
+}
+
+function SnippetListItem({ snippet }: { snippet: Snippet }) {
+  return (
+    <li className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow duration-200">
+      <div className="flex justify-between items-start">
+        <h2 className="text-lg font-medium text-gray-800">
+          {snippet.title}
+          {snippet.isFavorite && (
+            <span className="text-yellow-500 ml-2">★</span>
+          )}
+        </h2>
+        <span className="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded">
+          {snippet.language}
+        </span>
+      </div>
+
+      <p className="text-gray-600 mt-2">{snippet.description}</p>
+
+      <div className="mt-4 flex justify-between items-center">
+        <div className="flex flex-wrap gap-2">
+          {snippet.tags.map((tag) => (
+            <span
+              key={tag}
+              className="bg-gray-100 text-gray-600 text-xs px-2 py-1 rounded"
+            >
+              {tag}
+            </span>
+          ))}
+        </div>
+        <span className="text-gray-400 text-sm">
+          {formatDate(snippet.createdAt)}
+        </span>
+      </div>
+    </li>
+  );
+}
+
+function formatDate(date: Date): string {
+  return new Date(date).toDateString();
 }
