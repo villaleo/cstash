@@ -74,7 +74,7 @@ func configureLogger() (*zap.Logger, error) {
 		zapcore.NewCore(consoleEncoder, consoleDebugging, lowPriority),
 	)
 
-	return zap.New(core), nil
+	return zap.New(core).Named("cstash.server"), nil
 }
 
 // corsMiddleware adds CORS headers to allow cross-origin requests

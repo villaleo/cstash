@@ -13,7 +13,7 @@ import (
 )
 
 var (
-	ErrInternal = errors.New("an internal server error occurred")
+	errInternal = errors.New("an internal server error occurred")
 )
 
 // SnippetHandler handles snippet-related API requests
@@ -25,13 +25,13 @@ type SnippetHandler struct {
 // NewSnippetHandler creates a new snippet handler
 func NewSnippetHandler(store *storage.MemoryStore, logger *zap.Logger) *SnippetHandler {
 	return &SnippetHandler{
-		store,
-		logger,
+		store:  store,
+		logger: logger.Named("snippets"),
 	}
 }
 
 // Logger simply returns this handler's logger. This method is implemented to
-// satisfy LogHandler.
+// satisfy logHandler.
 func (h *SnippetHandler) Logger() *zap.Logger {
 	return h.logger
 }
@@ -71,7 +71,7 @@ func (h *SnippetHandler) CreateSnippet(w http.ResponseWriter, r *http.Request) {
 
 	if err := h.store.CreateSnippet(&newSnippet); err != nil {
 		sugar.Error(err)
-		http.Error(w, ErrInternal.Error(), http.StatusInternalServerError)
+		http.Error(w, errInternal.Error(), http.StatusInternalServerError)
 
 		return
 	}
@@ -128,7 +128,7 @@ func (h *SnippetHandler) GetSnippet(w http.ResponseWriter, r *http.Request) {
 			return
 		default:
 			sugar.Error(err)
-			http.Error(w, ErrInternal.Error(), http.StatusInternalServerError)
+			http.Error(w, errInternal.Error(), http.StatusInternalServerError)
 
 			return
 		}
@@ -151,7 +151,7 @@ func (h *SnippetHandler) UpdateSnippet(w http.ResponseWriter, r *http.Request) {
 	)
 
 	if err := decodeInto(r.Body, &updates); err != nil {
-		http.Error(w, ErrInternal.Error(), http.StatusInternalServerError)
+		http.Error(w, errInternal.Error(), http.StatusInternalServerError)
 		sugar.Error(err)
 
 		return
@@ -167,7 +167,7 @@ func (h *SnippetHandler) UpdateSnippet(w http.ResponseWriter, r *http.Request) {
 			return
 		default:
 			sugar.Error(err)
-			http.Error(w, ErrInternal.Error(), http.StatusInternalServerError)
+			http.Error(w, errInternal.Error(), http.StatusInternalServerError)
 
 			return
 		}
@@ -197,7 +197,7 @@ func (h *SnippetHandler) DeleteSnippet(w http.ResponseWriter, r *http.Request) {
 			return
 		default:
 			sugar.Error(err)
-			http.Error(w, ErrInternal.Error(), http.StatusInternalServerError)
+			http.Error(w, errInternal.Error(), http.StatusInternalServerError)
 
 			return
 		}

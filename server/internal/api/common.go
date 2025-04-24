@@ -8,9 +8,9 @@ import (
 	"go.uber.org/zap"
 )
 
-// _logHandler is implemented by handlers with an associated logger. It enables
+// logHandler is implemented by handlers with an associated logger. It enables
 // handlers to quickly write a JSON response using encodeJSON.
-type _logHandler interface {
+type logHandler interface {
 	Logger() *zap.Logger
 	RegisterRoutes(mux *http.ServeMux)
 }
@@ -32,10 +32,10 @@ func decodeInto(r io.ReadCloser, val any) error {
 // encodeJSON tries to encode val into w using json.Encode.
 //
 // Errors are written to w and a 500 is sent.
-func encodeJSON(h _logHandler, w http.ResponseWriter, val any) {
+func encodeJSON(h logHandler, w http.ResponseWriter, val any) {
 	if err := json.NewEncoder(w).Encode(val); err != nil {
 		h.Logger().Sugar().Error(err)
-		http.Error(w, ErrInternal.Error(), http.StatusInternalServerError)
+		http.Error(w, errInternal.Error(), http.StatusInternalServerError)
 
 		return
 	}
