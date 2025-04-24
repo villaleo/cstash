@@ -35,25 +35,31 @@ func NewSnippet(title, content, language string) *Snippet {
 	}
 }
 
-// AddTag adds a tag to the snippet if it doesn't already exist
-func (s *Snippet) AddTag(tag string) {
-	if slices.Contains(s.Tags, tag) {
-		return
+// AddTags adds tags to the snippet. Duplicate tags are not allowed
+func (s *Snippet) AddTags(tags ...string) {
+	for _, tag := range tags {
+		if slices.Contains(s.Tags, tag) {
+			continue
+		}
+
+		s.Tags = append(s.Tags, tag)
+		s.UpdatedAt = time.Now()
 	}
-	s.Tags = append(s.Tags, tag)
-	s.UpdatedAt = time.Now()
 }
 
-// RemoveTag removes a tag from the snippet
-func (s *Snippet) RemoveTag(tag string) {
-	for i, t := range s.Tags {
-		if t == tag {
-			s.Tags = slices.Delete(s.Tags, i, i+1)
-			s.UpdatedAt = time.Now()
+// RemoveTags removes tags from the snippet.
+func (s *Snippet) RemoveTags(tags ...string) {
+	deleteFn := func(tag string) bool {
+		ok := slices.Contains(tags, tag)
 
-			return
+		if ok {
+			s.UpdatedAt = time.Now()
 		}
+
+		return ok
 	}
+
+	s.Tags = slices.DeleteFunc(s.Tags, deleteFn)
 }
 
 // ToggleFavorite toggles the favorite status of a snippet
