@@ -9,6 +9,7 @@ import { Snippet } from "@/lib/types";
 import EditableLabel from "./EditableLabel";
 import StarIcon from "@/app/icons/StarIcon";
 import EllipsesIcon from "@/app/icons/EllipsesIcon";
+import CopyButton from "./CopyButton";
 
 interface SnippetListItemProps {
   snippet: Snippet;
@@ -155,7 +156,11 @@ export default function SnippetListItem({
         onClick={(e) => e.stopPropagation()}
       >
         <div className="pt-1">
-          <div className="flex justify-end items-end mb-2">
+          <div className="flex justify-end items-end gap-2 mb-2">
+            <CopyButton
+              text={localSnippet.content}
+              className="px-3 py-1 rounded text-xs font-medium"
+            />
             <button
               onClick={saveContent}
               disabled={isUpdating || editedContent === localSnippet.content}
@@ -173,7 +178,7 @@ export default function SnippetListItem({
             id={`content-${snippet.id}`}
             value={editedContent}
             onChange={(e) => setEditedContent(e.target.value)}
-            className="w-full h-32 p-2 border border-gray-300 rounded font-mono text-sm resize-none focus:border-blue-500 focus:ring focus:ring-blue-200 focus:ring-opacity-50"
+            className="w-full h-50 p-2 border border-gray-300 rounded font-mono text-sm resize-none focus:border-blue-500 focus:ring focus:ring-blue-200 focus:ring-opacity-50"
             placeholder="Add your code snippet here..."
             spellCheck="false"
           />
