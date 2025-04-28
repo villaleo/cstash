@@ -1,4 +1,4 @@
-import { MouseEvent } from "react";
+import { MouseEvent, useState } from "react";
 
 import EllipsesIcon from "@/app/icons/EllipsesIcon";
 import useStatefulBool from "@/app/hooks/statefulBool";
@@ -9,10 +9,10 @@ interface DropdownProps {
 }
 
 export default function Dropdown({ opts, onOptSelect }: DropdownProps) {
-  const [didSelect, toggleDidSelect] = useStatefulBool(false);
+  const [isExpanded, toggleIsExpanded] = useStatefulBool(false);
 
   const handleOnClick = (event: MouseEvent<HTMLElement>) => {
-    toggleDidSelect();
+    toggleIsExpanded();
     event.stopPropagation();
   };
 
@@ -21,16 +21,19 @@ export default function Dropdown({ opts, onOptSelect }: DropdownProps) {
     if (onOptSelect) onOptSelect(event, opt);
   };
 
+  const handleOnBlur = () => setTimeout(() => toggleIsExpanded(false), 300);
+
   return (
     <div>
       <button
         className="p-0.5 hover:cursor-pointer hover:bg-gray-100 transition-colors duration-300 text-gray-600 rounded"
         onClick={handleOnClick}
+        onBlur={handleOnBlur}
       >
         <EllipsesIcon />
       </button>
 
-      {didSelect && (
+      {isExpanded && (
         <ul className="absolute z-20 mt-2 w-36 bg-white border border-gray-300 rounded shadow-lg">
           {opts.map((opt) => (
             <li
