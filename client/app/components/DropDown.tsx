@@ -1,14 +1,23 @@
-import { MouseEvent, useState } from "react";
+import { JSX, MouseEvent, useState } from "react";
 
 import EllipsesIcon from "@/app/icons/EllipsesIcon";
 import useStatefulBool from "@/app/hooks/statefulBool";
+import ArrowsUpDownIcon from "../icons/ArrowsUpDownIcon";
+import FilterIcon from "../icons/FilterIcon";
 
 interface DropdownProps {
   opts: string[];
   onOptSelect?: (event: MouseEvent<HTMLElement>, opt: string) => void;
+  label?: string;
+  role?: "order" | "more" | "filter";
 }
 
-export default function Dropdown({ opts, onOptSelect }: DropdownProps) {
+export default function Dropdown({
+  opts,
+  onOptSelect,
+  label,
+  role = "more",
+}: DropdownProps) {
   const [isExpanded, toggleIsExpanded] = useStatefulBool(false);
 
   const handleOnClick = (event: MouseEvent<HTMLElement>) => {
@@ -23,6 +32,19 @@ export default function Dropdown({ opts, onOptSelect }: DropdownProps) {
 
   const handleOnBlur = () => setTimeout(() => toggleIsExpanded(false), 300);
 
+  let buttonIcon: JSX.Element;
+  switch (role) {
+    case "order":
+      buttonIcon = <ArrowsUpDownIcon label={label} />;
+      break;
+    case "more":
+      buttonIcon = <EllipsesIcon label={label} />;
+      break;
+    case "filter":
+      buttonIcon = <FilterIcon label={label} />;
+      break;
+  }
+
   return (
     <div>
       <button
@@ -30,7 +52,7 @@ export default function Dropdown({ opts, onOptSelect }: DropdownProps) {
         onClick={handleOnClick}
         onBlur={handleOnBlur}
       >
-        <EllipsesIcon />
+        {buttonIcon}
       </button>
 
       {isExpanded && (

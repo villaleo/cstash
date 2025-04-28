@@ -1,14 +1,16 @@
-"use client";
-
 import { MouseEventHandler } from "react";
 
-interface StarIconProps {
+interface FilterIconProps {
   label?: string;
   className?: string;
   onClick?: MouseEventHandler<SVGElement>;
 }
 
-export default function StarIcon({ label, className, onClick }: StarIconProps) {
+export default function FilterIcon({
+  label,
+  className,
+  onClick,
+}: FilterIconProps) {
   return (
     <span className={`flex items-center gap-2 ${label ? "p-1" : ""}`}>
       <svg
@@ -20,7 +22,7 @@ export default function StarIcon({ label, className, onClick }: StarIconProps) {
       >
         <path
           fillRule="evenodd"
-          d="M10.868 2.884c-.321-.772-1.415-.772-1.736 0l-1.83 4.401-4.753.381c-.833.067-1.171 1.107-.536 1.651l3.62 3.102-1.106 4.637c-.194.813.691 1.456 1.405 1.02L10 15.591l4.069 2.485c.713.436 1.598-.207 1.404-1.02l-1.106-4.637 3.62-3.102c.635-.544.297-1.584-.536-1.65l-4.752-.382-1.831-4.401Z"
+          d="M2.628 1.601C5.028 1.206 7.49 1 10 1s4.973.206 7.372.601a.75.75 0 0 1 .628.74v2.288a2.25 2.25 0 0 1-.659 1.59l-4.682 4.683a2.25 2.25 0 0 0-.659 1.59v3.037c0 .684-.31 1.33-.844 1.757l-1.937 1.55A.75.75 0 0 1 8 18.25v-5.757a2.25 2.25 0 0 0-.659-1.591L2.659 6.22A2.25 2.25 0 0 1 2 4.629V2.34a.75.75 0 0 1 .628-.74Z"
           clipRule="evenodd"
         />
       </svg>

@@ -2,25 +2,29 @@
 
 import { MouseEventHandler } from "react";
 
-interface StarIconProps {
+interface ArrowsUpDownIconProps {
   label?: string;
   className?: string;
   onClick?: MouseEventHandler<SVGElement>;
 }
 
-export default function StarIcon({ label, className, onClick }: StarIconProps) {
+export default function ArrowsUpDownIcon({
+  label,
+  className,
+  onClick,
+}: ArrowsUpDownIconProps) {
   return (
     <span className={`flex items-center gap-2 ${label ? "p-1" : ""}`}>
       <svg
         xmlns="http://www.w3.org/2000/svg"
-        viewBox="0 0 20 20"
+        viewBox="0 0 16 16"
         fill="currentColor"
         className={`size-4 ${className}`}
         onClick={onClick}
       >
         <path
           fillRule="evenodd"
-          d="M10.868 2.884c-.321-.772-1.415-.772-1.736 0l-1.83 4.401-4.753.381c-.833.067-1.171 1.107-.536 1.651l3.62 3.102-1.106 4.637c-.194.813.691 1.456 1.405 1.02L10 15.591l4.069 2.485c.713.436 1.598-.207 1.404-1.02l-1.106-4.637 3.62-3.102c.635-.544.297-1.584-.536-1.65l-4.752-.382-1.831-4.401Z"
+          d="M13.78 10.47a.75.75 0 0 1 0 1.06l-2.25 2.25a.75.75 0 0 1-1.06 0l-2.25-2.25a.75.75 0 1 1 1.06-1.06l.97.97V5.75a.75.75 0 0 1 1.5 0v5.69l.97-.97a.75.75 0 0 1 1.06 0ZM2.22 5.53a.75.75 0 0 1 0-1.06l2.25-2.25a.75.75 0 0 1 1.06 0l2.25 2.25a.75.75 0 0 1-1.06 1.06l-.97-.97v5.69a.75.75 0 0 1-1.5 0V4.56l-.97.97a.75.75 0 0 1-1.06 0Z"
           clipRule="evenodd"
         />
       </svg>
