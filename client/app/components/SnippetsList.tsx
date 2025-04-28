@@ -1,43 +1,98 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 
 import api from "@/lib/api";
 import { Snippet } from "@/lib/types";
 import { urlEncodeQueryArray } from "@/lib/common";
+import SnippetListItem from "./SnippetsListItem";
 
 interface SnippetsListProps {
   tags?: string[];
+  sortBy?: keyof Snippet;
+  sortDirection?: "asc" | "desc";
 }
 
-export default function SnippetsList({ tags }: SnippetsListProps) {
+export default function SnippetsList({
+  tags,
+  sortBy = "createdAt", // Default sort
+  sortDirection = "desc", // Default direction (newest first)
+}: SnippetsListProps) {
   const [snippets, setSnippets] = useState<Snippet[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    async function fetchSnippets() {
-      let endpoint = "/snippets";
+  // Function to fetch all snippets
+  const fetchSnippets = useCallback(async () => {
+    let endpoint = "/snippets";
 
-      if (tags) {
-        const query = urlEncodeQueryArray("tags", tags);
-        endpoint += "?" + query;
-      }
-
-      try {
-        const response = await api.get(endpoint);
-        setSnippets(response.data);
-      } catch (err: any) {
-        setError(err.message);
-      } finally {
-        setLoading(false);
-      }
+    if (tags && tags.length > 0) {
+      const query = urlEncodeQueryArray("tags", tags);
+      endpoint += "?" + query;
     }
 
-    fetchSnippets();
-  }, []);
+    try {
+      setLoading(true);
+      const response = await api.get(endpoint);
+      // Sort snippets consistently
+      const sortedSnippets = sortSnippets(response.data, sortBy, sortDirection);
+      setSnippets(sortedSnippets);
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  }, [tags, sortBy, sortDirection]);
 
-  if (loading) {
+  // Function to update a single snippet in the local state
+  const updateSnippetLocally = useCallback(
+    (updatedSnippet: Snippet) => {
+      setSnippets((prevSnippets) => {
+        const updated = prevSnippets.map((snippet) =>
+          snippet.id === updatedSnippet.id ? updatedSnippet : snippet
+        );
+        // Re-sort to maintain consistency
+        return sortSnippets(updated, sortBy, sortDirection);
+      });
+    },
+    [sortBy, sortDirection]
+  );
+
+  // Helper function to sort snippets consistently
+  const sortSnippets = (
+    snippets: Snippet[],
+    field: keyof Snippet,
+    direction: "asc" | "desc"
+  ) => {
+    return [...snippets].sort((a, b) => {
+      let comparison = 0;
+
+      // Handle different field types
+      if (typeof a[field] === "string" && typeof b[field] === "string") {
+        comparison = (a[field] as string).localeCompare(b[field] as string);
+      } else if (a[field] instanceof Date && b[field] instanceof Date) {
+        comparison =
+          (a[field] as Date).getTime() - (b[field] as Date).getTime();
+      } else if (
+        typeof a[field] === "boolean" &&
+        typeof b[field] === "boolean"
+      ) {
+        comparison = a[field] === b[field] ? 0 : a[field] ? 1 : -1;
+      } else {
+        // Fallback for other types
+        comparison = String(a[field]).localeCompare(String(b[field]));
+      }
+
+      return direction === "asc" ? comparison : -comparison;
+    });
+  };
+
+  // Initial fetch
+  useEffect(() => {
+    fetchSnippets();
+  }, [fetchSnippets]);
+
+  if (loading && snippets.length === 0) {
     return (
       <p className="text-gray-500 text-center py-8">Loading snippets...</p>
     );
@@ -56,50 +111,15 @@ export default function SnippetsList({ tags }: SnippetsListProps) {
       ) : (
         <ul className="space-y-4">
           {snippets.map((snippet) => (
-            <SnippetListItem key={snippet.id} snippet={snippet} />
+            <SnippetListItem
+              key={snippet.id}
+              snippet={snippet}
+              onUpdate={updateSnippetLocally}
+              refreshList={fetchSnippets}
+            />
           ))}
         </ul>
       )}
     </div>
   );
-}
-
-function SnippetListItem({ snippet }: { snippet: Snippet }) {
-  return (
-    <li className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow duration-200">
-      <div className="flex justify-between items-start">
-        <h2 className="text-lg font-medium text-gray-800">
-          {snippet.title}
-          {snippet.isFavorite && (
-            <span className="text-yellow-500 ml-2">★</span>
-          )}
-        </h2>
-        <span className="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded">
-          {snippet.language}
-        </span>
-      </div>
-
-      <p className="text-gray-600 mt-2">{snippet.description}</p>
-
-      <div className="mt-4 flex justify-between items-center">
-        <div className="flex flex-wrap gap-2">
-          {snippet.tags.map((tag) => (
-            <span
-              key={tag}
-              className="bg-gray-100 text-gray-600 text-xs px-2 py-1 rounded"
-            >
-              {tag}
-            </span>
-          ))}
-        </div>
-        <span className="text-gray-400 text-sm">
-          {formatDate(snippet.createdAt)}
-        </span>
-      </div>
-    </li>
-  );
-}
-
-function formatDate(date: Date): string {
-  return new Date(date).toDateString();
 }
