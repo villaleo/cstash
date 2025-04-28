@@ -2,7 +2,7 @@
 
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import api from "@/lib/api";
 import { Snippet } from "@/lib/types";
@@ -156,7 +156,7 @@ export default function SnippetListItem({
         onClick={(e) => e.stopPropagation()}
       >
         <div className="pt-1">
-          <div className="flex justify-end items-end gap-2 mb-2">
+          <div className="flex justify-end items-end gap-2 mb-2 translate-y-11 -translate-x-3">
             <CopyButton
               text={localSnippet.content}
               className="px-3 py-1 rounded text-xs font-medium"
