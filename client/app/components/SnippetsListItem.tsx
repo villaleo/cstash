@@ -2,14 +2,15 @@
 
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { MouseEvent, useState } from "react";
 
 import api from "@/lib/api";
 import { Snippet } from "@/lib/types";
 import EditableLabel from "./EditableLabel";
 import StarIcon from "@/app/icons/StarIcon";
-import EllipsesIcon from "@/app/icons/EllipsesIcon";
 import CopyButton from "./CopyButton";
+import Dropdown from "./DropDown";
+import useToggleableBool from "../hooks/statefulBool";
 
 interface SnippetListItemProps {
   snippet: Snippet;
@@ -31,18 +32,24 @@ export default function SnippetListItem({
   onUpdate,
   refreshList,
 }: SnippetListItemProps) {
-  const [isUpdating, setIsUpdating] = useState(false);
+  const [isUpdating, toggleIsUpdating] = useToggleableBool(false);
   const [error, setError] = useState<string | null>(null);
   const [localSnippet, setLocalSnippet] = useState<Snippet>(snippet);
-  const [isExpanded, setIsExpanded] = useState(false);
+  const [isExpanded, toggleIsExpanded] = useToggleableBool(false);
   const [editedContent, setEditedContent] = useState(snippet.content);
+
+  const dropdownOpts = [
+    "Edit",
+    localSnippet.isFavorite ? "Undo Favorite" : "Favorite",
+    "Delete",
+  ];
 
   // Only update specific fields, but return the full updated snippet
   const updateSnippet = async (updates: SnippetUpdateableFields) => {
     if (isUpdating) return;
 
     try {
-      setIsUpdating(true);
+      toggleIsUpdating(true);
 
       // Optimistic update - update locally first
       const optimisticUpdate = { ...localSnippet, ...updates };
@@ -72,31 +79,43 @@ export default function SnippetListItem({
         await refreshList();
       }
     } finally {
-      setIsUpdating(false);
+      toggleIsUpdating(false);
     }
   };
 
-  function toggleFavorite(e: React.MouseEvent) {
+  const toggleFavorite = (e: React.MouseEvent) => {
     // Prevent the click from toggling expansion
     e.stopPropagation();
     updateSnippet({ isFavorite: !localSnippet.isFavorite });
-  }
+  };
 
-  function updateTitle(newTitle: string) {
+  const updateTitle = (newTitle: string) => {
     if (newTitle !== localSnippet.title) {
       updateSnippet({ title: newTitle });
     }
-  }
+  };
 
-  function saveContent() {
+  const saveContent = () => {
     if (editedContent !== localSnippet.content) {
       updateSnippet({ content: editedContent });
     }
-  }
+  };
 
-  function toggleExpand() {
-    setIsExpanded(!isExpanded);
-  }
+  const handleOnOptSelect = (event: MouseEvent<HTMLElement>, opt: string) => {
+    switch (opt) {
+      case "Edit":
+        // Handle editing
+        break;
+      case "Favorite":
+      case "Undo Favorite":
+        toggleFavorite(event);
+        break;
+      case "Delete":
+      // Handle delete
+      default:
+        break;
+    }
+  };
 
   if (error) {
     return (
@@ -119,7 +138,7 @@ export default function SnippetListItem({
       }
       rounded-lg p-4 hover:shadow-md transition-all duration-200 cursor-pointer
       ${isExpanded ? "shadow-lg" : ""}`}
-      onClick={toggleExpand}
+      onClick={() => toggleIsExpanded()}
     >
       <div className="flex justify-between items-center">
         <h2 className="flex gap-2 items-center text-lg font-medium text-gray-800">
@@ -139,12 +158,7 @@ export default function SnippetListItem({
             } hover:cursor-pointer inline-block transition-colors duration-200`}
           />
         </h2>
-        <span
-          className=" p-0.5 hover:cursor-pointer hover:bg-gray-100 transition-colors duration-300 text-gray-600 rounded"
-          onClick={(e) => e.stopPropagation()}
-        >
-          <EllipsesIcon />
-        </span>
+        <Dropdown opts={dropdownOpts} onOptSelect={handleOnOptSelect} />
       </div>
 
       <p className="text-gray-500 mt-1">{localSnippet.description}</p>
