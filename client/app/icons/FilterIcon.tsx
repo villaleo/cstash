@@ -12,12 +12,12 @@ export default function FilterIcon({
   onClick,
 }: FilterIconProps) {
   return (
-    <span className={`flex items-center gap-2 ${label ? "p-1" : ""}`}>
+    <span className={`flex items-center gap-2 ${className}`}>
       <svg
         xmlns="http://www.w3.org/2000/svg"
         viewBox="0 0 20 20"
         fill="currentColor"
-        className={`size-4 ${className}`}
+        className="size-4"
         onClick={onClick}
       >
         <path

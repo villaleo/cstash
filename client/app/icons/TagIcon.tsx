@@ -10,12 +10,12 @@ interface TagIconProps {
 
 export default function TagIcon({ label, className, onClick }: TagIconProps) {
   return (
-    <span>
+    <span className={`flex items-center gap-2 ${className}`}>
       <svg
         xmlns="http://www.w3.org/2000/svg"
         viewBox="0 0 16 16"
         fill="currentColor"
-        className={`size-4 ${className}`}
+        className="size-4"
         onClick={onClick}
       >
         <path

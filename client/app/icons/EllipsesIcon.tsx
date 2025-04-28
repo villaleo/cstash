@@ -14,14 +14,14 @@ export default function EllipsesIcon({
   onClick,
 }: EllipsesIconProps) {
   return (
-    <span className={`flex items-center gap-2 ${label ? "p-1" : ""}`}>
+    <span className={`flex items-center gap-2 ${className}`}>
       <svg
         xmlns="http://www.w3.org/2000/svg"
         fill="none"
         viewBox="0 0 24 24"
         strokeWidth={1.5}
         stroke="currentColor"
-        className={`size-6 ${className}`}
+        className="size-6"
         onClick={onClick}
       >
         <path
