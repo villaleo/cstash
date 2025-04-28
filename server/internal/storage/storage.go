@@ -2,6 +2,7 @@ package storage
 
 import (
 	"errors"
+	"maps"
 	"strings"
 	"sync"
 	"time"
@@ -134,63 +135,41 @@ func (s *MemoryStore) DeleteSnippet(id string) error {
 	return nil
 }
 
-// ListSnippets returns all snippets, optionally filtered by tags
-func (s *MemoryStore) ListSnippets(tags []string) []*models.Snippet {
-	sugar := s.logger.Sugar()
-
+// ListSnippets returns all snippets, optionally filtered by tags or a query
+func (s *MemoryStore) ListSnippets(tags []string, query string) []*models.Snippet {
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
 
-	var results []*models.Snippet
-
-	if len(tags) == 0 {
-		// Return all snippets if no tags are specified
+	var (
 		results = make([]*models.Snippet, 0, len(s.snippets))
-		for _, snippet := range s.snippets {
-			results = append(results, snippet)
-		}
+		sugar   = s.logger.Sugar()
+	)
 
-		sugar.Debugw("fetched all snippets", "count", len(s.snippets))
+	// Sanitize the search query
+	query = strings.ToLower(strings.TrimSpace(query))
 
-		return results
+	if tags == nil && query == "" {
+		return slices.Collect(maps.Values(s.snippets))
 	}
 
-	// Filter snippets by tags
 	for _, snippet := range s.snippets {
 		if hasAnyTag(snippet, tags) {
 			results = append(results, snippet)
+			continue
 		}
-	}
 
-	sugar.Debugw("fetched snippets", "count", len(results), "withTags", tags)
-
-	return results
-}
-
-// SearchSnippets searches snippets by title or content
-func (s *MemoryStore) SearchSnippets(query string) []*models.Snippet {
-	sugar := s.logger.Sugar()
-
-	s.mutex.RLock()
-	defer s.mutex.RUnlock()
-
-	var results []*models.Snippet
-
-	// Simple substring search
-	for _, snippet := range s.snippets {
-		if containsIgnoreCase(snippet.Title, query) ||
-			containsIgnoreCase(snippet.Content, query) ||
-			containsIgnoreCase(snippet.Description, query) {
+		if anyFieldContainsQuery(snippet, query) {
 			results = append(results, snippet)
+			continue
 		}
 	}
 
-	sugar.Debugw("found snippets", "count", len(results), "query", query)
+	sugar.Debugw("fetched snippets", "count", len(results), "tags", tags, "query", query)
 
 	return results
 }
 
-// hasAnyTag reports whether snippet contains any matching tags
+// hasAnyTag reports whether snippet contains any tags
 func hasAnyTag(snippet *models.Snippet, tags []string) bool {
 	for _, searchTag := range tags {
 		if slices.Contains(snippet.Tags, searchTag) {
@@ -199,6 +178,18 @@ func hasAnyTag(snippet *models.Snippet, tags []string) bool {
 	}
 
 	return false
+}
+
+// anyFieldContainsQuery reports whether any field in snippet contains query
+func anyFieldContainsQuery(snippet *models.Snippet, query string) bool {
+	if query == "" {
+		return false
+	}
+
+	return containsIgnoreCase(snippet.Title, query) ||
+		containsIgnoreCase(snippet.Content, query) ||
+		containsIgnoreCase(snippet.Description, query) ||
+		containsIgnoreCase(snippet.Language, query)
 }
 
 // containsIgnoreCase reports whether text contains substr, ignoring casing

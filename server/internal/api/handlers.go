@@ -43,7 +43,6 @@ func (h *SnippetHandler) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/v1/snippets/{id}", h.GetSnippet)
 	mux.HandleFunc("PUT /api/v1/snippets/{id}", h.UpdateSnippet)
 	mux.HandleFunc("DELETE /api/v1/snippets/{id}", h.DeleteSnippet)
-	mux.HandleFunc("GET /api/v1/snippets/search", h.SearchSnippets)
 }
 
 // CreateSnippet handles creating a new snippet
@@ -86,24 +85,25 @@ func (h *SnippetHandler) CreateSnippet(w http.ResponseWriter, r *http.Request) {
 	encodeJSON(h, w, response)
 }
 
-// ListSnippets handles listing all snippets with optional tag filtering
+// ListSnippets handles listing all snippets with optional tag filtering and
+// query filtering
 func (h *SnippetHandler) ListSnippets(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 
 	var (
 		tagsQuery = r.URL.Query()["tags"]
+		query     = r.URL.Query().Get("q")
 		results   []*models.Snippet
 		sugar     = h.logger.Sugar()
 	)
 
-	results = h.store.ListSnippets(tagsQuery)
+	results = h.store.ListSnippets(tagsQuery, query)
 
-	// If no results were returned from a non-nil query, send a 404 status code
-	if results == nil && tagsQuery != nil {
+	if len(results) == 0 {
 		w.WriteHeader(http.StatusNotFound)
 	}
 
-	sugar.Debugw("fetched snippets", "count", len(results), "withTags", tagsQuery)
+	sugar.Debugw("fetched snippets", "count", len(results), "tags", tagsQuery, "query", query)
 
 	encodeJSON(h, w, results)
 }
@@ -205,29 +205,4 @@ func (h *SnippetHandler) DeleteSnippet(w http.ResponseWriter, r *http.Request) {
 
 	sugar.Debugw("snippet deleted", "snippet.id", id)
 	w.WriteHeader(http.StatusNoContent)
-}
-
-// SearchSnippets handles searching snippets
-func (h *SnippetHandler) SearchSnippets(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-
-	var (
-		query   = r.URL.Query().Get("q")
-		results []*models.Snippet
-		sugar   = h.logger.Sugar()
-	)
-
-	results = h.store.SearchSnippets(query)
-
-	if results == nil && query != "" {
-		err := errors.New("snippets not found")
-		sugar.Debugw(err.Error(), "query", query)
-		http.Error(w, err.Error(), http.StatusNotFound)
-
-		return
-	}
-
-	sugar.Debugw("fetched snippets", "count", len(results))
-
-	encodeJSON(h, w, results)
 }
