@@ -24,7 +24,7 @@ export default function StarIcon({ label, className, onClick }: StarIconProps) {
           clipRule="evenodd"
         />
       </svg>
-      <span>{label}</span>
+      {label && <span>{label}</span>}
     </span>
   );
 }

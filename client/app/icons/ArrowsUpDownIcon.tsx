@@ -28,7 +28,7 @@ export default function ArrowsUpDownIcon({
           clipRule="evenodd"
         />
       </svg>
-      <span>{label}</span>
+      {label && <span>{label}</span>}
     </span>
   );
 }
