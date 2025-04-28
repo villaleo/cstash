@@ -151,12 +151,13 @@ export default function SnippetListItem({
 
       {/* Expandable Content Section */}
       <div
-        className={`overflow-hidden transition-all duration-300 ease-in-out
-        ${isExpanded ? "max-h-100 mt-4 opacity-100" : "max-h-0 opacity-0"}`}
+        className={`overflow-hidden transition-all duration-400 ease-in-out ${
+          isExpanded ? "max-h-100 opacity-100" : "max-h-0 opacity-0"
+        }`}
         onClick={(e) => e.stopPropagation()}
       >
         <div className="pt-1">
-          <div className="flex justify-end items-end gap-2 mb-2 translate-y-11 -translate-x-3">
+          <div className="flex h-0 justify-end items-end gap-2 mb-2 translate-y-11 -translate-x-3">
             <CopyButton
               text={localSnippet.content}
               className="px-3 py-1 rounded text-xs font-medium"
@@ -164,7 +165,7 @@ export default function SnippetListItem({
             <button
               onClick={saveContent}
               disabled={isUpdating || editedContent === localSnippet.content}
-              className={`px-3 py-1 rounded text-xs font-medium 
+              className={`px-3 py-1 rounded text-xs font-medium
                 ${
                   isUpdating || editedContent === localSnippet.content
                     ? "bg-gray-200 text-gray-500 cursor-not-allowed"
@@ -178,7 +179,7 @@ export default function SnippetListItem({
             id={`content-${snippet.id}`}
             value={editedContent}
             onChange={(e) => setEditedContent(e.target.value)}
-            className="w-full h-50 p-2 border border-gray-300 rounded font-mono text-sm resize-none focus:border-blue-500 focus:ring focus:ring-blue-200 focus:ring-opacity-50"
+            className="w-full h-80 p-2 border border-gray-300 rounded font-mono text-sm resize-none focus:border-blue-500 focus:ring focus:ring-blue-200 focus:ring-opacity-50"
             placeholder="Add your code snippet here..."
             spellCheck="false"
           />
