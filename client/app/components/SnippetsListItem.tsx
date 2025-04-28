@@ -8,8 +8,8 @@ import EditableLabel from "./EditableLabel";
 import StarIcon from "@/app/icons/StarIcon";
 import CopyButton from "./CopyButton";
 import Dropdown from "./DropDown";
-import useToggleableBool from "../hooks/statefulBool";
 import ProgressIndicator from "./ProgressIndicator";
+import useToggleableBool from "../hooks/statefulBool";
 
 interface SnippetListItemProps {
   snippet: Snippet;
@@ -31,6 +31,7 @@ export default function SnippetListItem({
   onUpdate,
   refreshList,
 }: SnippetListItemProps) {
+  const [isDeleted, toggleIsDeleted] = useToggleableBool(false);
   const [isUpdating, toggleIsUpdating] = useToggleableBool(false);
   const [error, setError] = useState<string | null>(null);
   const [localSnippet, setLocalSnippet] = useState<Snippet>(snippet);
@@ -82,6 +83,22 @@ export default function SnippetListItem({
     }
   };
 
+  const deleteSnippet = async () => {
+    // Can't delete something that is being updated
+    if (isUpdating) return;
+
+    try {
+      await api.delete(`/snippets/${snippet.id}`);
+      toggleIsDeleted(true);
+    } catch (err: any) {
+      setError(err.message);
+
+      if (err.status >= 500) {
+        await refreshList();
+      }
+    }
+  };
+
   const toggleFavorite = (e: React.MouseEvent) => {
     // Prevent the click from toggling expansion
     e.stopPropagation();
@@ -110,7 +127,7 @@ export default function SnippetListItem({
         toggleFavorite(event);
         break;
       case "Delete":
-      // Handle delete
+        deleteSnippet();
       default:
         break;
     }
@@ -130,7 +147,7 @@ export default function SnippetListItem({
     );
   }
 
-  return (
+  const snippetItem = (
     <li
       className={`border ${
         isUpdating ? "border-blue-200 bg-blue-50" : "border-gray-200"
@@ -225,4 +242,6 @@ export default function SnippetListItem({
       {isUpdating && <ProgressIndicator label="Saving changes..." />}
     </li>
   );
+
+  return isDeleted ? <></> : snippetItem;
 }
