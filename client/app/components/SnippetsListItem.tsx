@@ -9,8 +9,8 @@ import StarIcon from "@/app/icons/StarIcon";
 import CopyButton from "./CopyButton";
 import Dropdown from "./DropDown";
 import ProgressIndicator from "./ProgressIndicator";
-import useToggleableBool from "../hooks/statefulBool";
-import EllipsesIcon from "../icons/EllipsesIcon";
+import useStatefulBool from "@/app/hooks/statefulBool";
+import EllipsesIcon from "@/app/icons/EllipsesIcon";
 
 interface SnippetListItemProps {
   snippet: Snippet;
@@ -32,11 +32,11 @@ export default function SnippetListItem({
   onUpdate,
   refreshList,
 }: SnippetListItemProps) {
-  const [isDeleted, toggleIsDeleted] = useToggleableBool(false);
-  const [isUpdating, toggleIsUpdating] = useToggleableBool(false);
+  const [isDeleted, toggleIsDeleted] = useStatefulBool(false);
+  const [isUpdating, toggleIsUpdating] = useStatefulBool(false);
   const [error, setError] = useState<string | null>(null);
   const [localSnippet, setLocalSnippet] = useState<Snippet>(snippet);
-  const [isExpanded, toggleIsExpanded] = useToggleableBool(false);
+  const [isExpanded, toggleIsExpanded] = useStatefulBool(false);
   const [editedContent, setEditedContent] = useState(snippet.content);
 
   const dropdownOpts = [
@@ -163,7 +163,7 @@ export default function SnippetListItem({
           <div onClick={(e) => e.stopPropagation()}>
             <EditableLabel
               text={localSnippet.title}
-              placeholder="Untitled Snippet"
+              placeholder="Snippet Title"
               onChange={updateTitle}
               disabled={isUpdating}
             />
@@ -180,7 +180,7 @@ export default function SnippetListItem({
         </Dropdown>
       </div>
 
-      <p className="text-gray-500 mt-1">{localSnippet.description}</p>
+      <p className="text-gray-500 mt-4">{localSnippet.description}</p>
 
       {/* Expandable Content Section */}
       <div

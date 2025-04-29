@@ -1,4 +1,11 @@
-import React, { useState, useRef, useEffect } from "react";
+import {
+  useState,
+  useRef,
+  useEffect,
+  MouseEvent,
+  ChangeEvent,
+  KeyboardEvent,
+} from "react";
 
 interface EditableLabelProps {
   className?: string;
@@ -62,7 +69,7 @@ export default function EditableLabel({
 
   const handleBlur = () => cancelChanges();
 
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+  const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Enter") {
       saveChanges();
     }
@@ -72,7 +79,7 @@ export default function EditableLabel({
     }
   };
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleChange = (e: ChangeEvent<HTMLInputElement>) => {
     const newValue = e.target.value;
     setValue(newValue);
   };
@@ -92,17 +99,20 @@ export default function EditableLabel({
   return (
     <>
       {!disabled && isEditing ? (
-        <input
-          className={`${commonStyles} border border-gray-300`}
-          ref={inputRef}
-          value={value}
-          onChange={handleChange}
-          onBlur={handleBlur}
-          onKeyDown={handleKeyDown}
-          type="text"
-          placeholder={placeholder}
-          style={widthStyle}
-        />
+        <div className="relative">
+          <input
+            className={`${commonStyles} border border-gray-300`}
+            ref={inputRef}
+            value={value}
+            onChange={handleChange}
+            onBlur={handleBlur}
+            onKeyDown={handleKeyDown}
+            type="text"
+            placeholder={placeholder}
+            style={widthStyle}
+          />
+          <p className={`h-0 text-sm text-blue-700`}>Press Enter to save</p>
+        </div>
       ) : (
         <span
           ref={spanRef}
