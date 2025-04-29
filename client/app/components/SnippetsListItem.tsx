@@ -10,6 +10,7 @@ import CopyButton from "./CopyButton";
 import Dropdown from "./DropDown";
 import ProgressIndicator from "./ProgressIndicator";
 import useToggleableBool from "../hooks/statefulBool";
+import EllipsesIcon from "../icons/EllipsesIcon";
 
 interface SnippetListItemProps {
   snippet: Snippet;
@@ -174,7 +175,9 @@ export default function SnippetListItem({
             } hover:cursor-pointer inline-block transition-colors duration-200`}
           />
         </h2>
-        <Dropdown opts={dropdownOpts} onOptSelect={handleOnOptSelect} />
+        <Dropdown opts={dropdownOpts} onOptSelect={handleOnOptSelect}>
+          <EllipsesIcon />
+        </Dropdown>
       </div>
 
       <p className="text-gray-500 mt-1">{localSnippet.description}</p>
