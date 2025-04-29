@@ -7,7 +7,7 @@ import { Snippet } from "@/lib/types";
 import EditableLabel from "./EditableLabel";
 import StarIcon from "@/app/icons/StarIcon";
 import CopyButton from "./CopyButton";
-import Dropdown from "./DropDown";
+import Dropdown from "./Dropdown";
 import ProgressIndicator from "./ProgressIndicator";
 import useStatefulBool from "@/app/hooks/statefulBool";
 import EllipsesIcon from "@/app/icons/EllipsesIcon";
@@ -180,7 +180,7 @@ export default function SnippetListItem({
         </Dropdown>
       </div>
 
-      <p className="text-gray-500 mt-4">{localSnippet.description}</p>
+      <p className="text-gray-500 mt-5">{localSnippet.description}</p>
 
       {/* Expandable Content Section */}
       <div

@@ -1,16 +1,29 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import {
+  useState,
+  useEffect,
+  useCallback,
+  MouseEventHandler,
+  MouseEvent,
+} from "react";
 
 import api from "@/lib/api";
 import { Snippet } from "@/lib/types";
 import { urlEncodeQueryArray } from "@/lib/common";
 import SnippetListItem from "./SnippetsListItem";
-import Dropdown from "./DropDown";
+import Dropdown from "./Dropdown";
+import SearchBar from "./SearchBar";
+import TagIcon from "../icons/TagIcon";
+import ArrowsUpDownIcon from "../icons/ArrowsUpDownIcon";
+import FilterIcon from "../icons/FilterIcon";
+import MultipleChoiceDropdown from "./MultipleChoiceDropdown";
 
 export default function SnippetsList() {
   const [snippets, setSnippets] = useState<Snippet[]>([]);
   const [tags, setTags] = useState<string[]>([]);
+  const [searchValue, setSearchValue] = useState("");
+  const [searchTags, setSearchTags] = useState<string[]>([]);
   const [sortBy, setSortBy] = useState<keyof Snippet>("createdAt");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
   const [loading, setLoading] = useState(true);
@@ -18,25 +31,40 @@ export default function SnippetsList() {
 
   // Function to fetch all snippets
   const fetchSnippets = useCallback(async () => {
-    let endpoint = "/snippets";
-
-    if (tags && tags.length > 0) {
-      const query = urlEncodeQueryArray("tags", tags);
-      endpoint += "?" + query;
-    }
+    const tagsQuery = urlEncodeQueryArray("tags", searchTags);
+    const query = encodeURI(searchValue);
 
     try {
       setLoading(true);
-      const response = await api.get(endpoint);
+      const snippetsResponse = await api.get(
+        `/snippets?q=${query}&${tagsQuery}`
+      );
+
       // Sort snippets consistently
-      const sortedSnippets = sortSnippets(response.data, sortBy, sortOrder);
+      const sortedSnippets = sortSnippets(
+        snippetsResponse.data,
+        sortBy,
+        sortOrder
+      );
       setSnippets(sortedSnippets);
+
+      const tagsResponse = await api.get("/tags");
+      const tags: string[] = tagsResponse.data;
+
+      // Sort tags alphabetically
+      const sortedTags = tags.toSorted((a, b) => a.localeCompare(b));
+      setTags(sortedTags);
     } catch (err: any) {
+      if (err.status === 404) {
+        setSnippets([]);
+        return;
+      }
+
       setError(err.message);
     } finally {
       setLoading(false);
     }
-  }, [tags, sortBy, sortOrder]);
+  }, [sortBy, sortOrder, searchValue, searchTags]);
 
   // Function to update a single snippet in the local state
   const updateSnippetLocally = useCallback(
@@ -107,40 +135,45 @@ export default function SnippetsList() {
       updatedAt: "Date Updated",
     };
 
+    const handleOptSelect = (event: MouseEvent<HTMLElement>, opt: string) => {
+      switch (opt) {
+        case "Favorites":
+          setSortBy("isFavorite");
+          break;
+        case "Title":
+          setSortBy("title");
+          break;
+        case "Description":
+          setSortBy("description");
+          break;
+        case "Content":
+          setSortBy("content");
+          break;
+        case "Language":
+          setSortBy("language");
+          break;
+        case "Date Created":
+          setSortBy("createdAt");
+          break;
+        case "Date Updated":
+          setSortBy("updatedAt");
+          break;
+        default:
+          setSortBy("createdAt");
+          break;
+      }
+    };
+
     return (
       <Dropdown
-        label={filterOptLabel[sortBy]}
         opts={Object.values(filterOptLabel)}
-        onOptSelect={(event, opt) => {
-          switch (opt) {
-            case "Favorites":
-              setSortBy("isFavorite");
-              break;
-            case "Title":
-              setSortBy("title");
-              break;
-            case "Description":
-              setSortBy("description");
-              break;
-            case "Content":
-              setSortBy("content");
-              break;
-            case "Language":
-              setSortBy("language");
-              break;
-            case "Date Created":
-              setSortBy("createdAt");
-              break;
-            case "Date Updated":
-              setSortBy("updatedAt");
-              break;
-            default:
-              setSortBy("createdAt");
-              break;
-          }
-        }}
-        role="filter"
-      />
+        onOptSelect={handleOptSelect}
+      >
+        <FilterIcon
+          className="p-1 px-2 border border-gray-200 rounded"
+          label={filterOptLabel[sortBy]}
+        />
+      </Dropdown>
     );
   };
 
@@ -150,26 +183,69 @@ export default function SnippetsList() {
       desc: "Descending",
     };
 
+    const handleOptSelect = (event: MouseEvent<HTMLElement>, opt: string) => {
+      switch (opt) {
+        case "Ascending":
+          setSortOrder("asc");
+          break;
+        case "Descending":
+          setSortOrder("desc");
+          break;
+        default:
+          setSortOrder("desc");
+          break;
+      }
+    };
+
     return (
       <Dropdown
-        label={orderOptLabel[sortOrder]}
         opts={["Ascending", "Descending"]}
-        onOptSelect={(event, opt) => {
-          switch (opt) {
-            case "Ascending":
-              setSortOrder("asc");
-              break;
-            case "Descending":
-              setSortOrder("desc");
-              break;
-            default:
-              setSortOrder("desc");
-              break;
-          }
-        }}
-        role="order"
-      />
+        onOptSelect={handleOptSelect}
+      >
+        <ArrowsUpDownIcon
+          className="p-1 px-2 border border-gray-200 rounded"
+          label={orderOptLabel[sortOrder]}
+        />
+      </Dropdown>
     );
+  };
+
+  const TagButton = () => {
+    return (
+      <div>
+        <MultipleChoiceDropdown
+          value={searchTags}
+          opts={tags}
+          onSelect={(event, tag) => {
+            if (searchTags.includes(tag)) {
+              const index = searchTags.indexOf(tag)!;
+              const updatedSearchTags = [...searchTags];
+
+              updatedSearchTags.splice(index, 1);
+              setSearchTags(updatedSearchTags);
+
+              return;
+            }
+
+            setSearchTags([...searchTags, tag]);
+          }}
+        >
+          <TagIcon className="p-2 border border-gray-200 rounded" />
+        </MultipleChoiceDropdown>
+
+        {searchTags.length > 0 && (
+          <span
+            className={`absolute -translate-y-10 translate-x-6 px-1.5 py-0 bg-red-500 text-white text-xs text-center rounded-full`}
+          >
+            {searchTags.length}
+          </span>
+        )}
+      </div>
+    );
+  };
+
+  const handleSearchChanges = (changes: string) => {
+    setSearchValue(changes);
   };
 
   return (
@@ -177,20 +253,23 @@ export default function SnippetsList() {
       <h1 className="text-2xl font-bold text-gray-800 mb-4">Code Stash</h1>
 
       <div className="flex justify-between md:mb-4">
-        <input
-          className="w-[100%] md:w-[50%] border border-gray-200 p-1 px-2 rounded"
-          type="search"
-          placeholder="Search snippets..."
-        />
+        <div className="flex items-center gap-2 w-[100%] md:w-[50%]">
+          <TagButton />
+          <SearchBar
+            className="w-[100%]"
+            placeholder="Search snippets..."
+            onChange={handleSearchChanges}
+          />
+        </div>
         {/* Inline filter and order buttons are hidden on mobile */}
-        <div className="hidden md:flex items-center gap-4">
+        <div className="hidden md:flex items-center gap-2">
           <FilterButton />
           <OrderButton />
         </div>
       </div>
 
       {/* Filter and order buttons are on a different line on mobile */}
-      <div className="flex md:hidden items-center gap-4 my-4">
+      <div className="flex md:hidden items-center gap-2 my-4">
         <FilterButton />
         <OrderButton />
       </div>
