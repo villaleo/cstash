@@ -19,9 +19,11 @@ var (
 
 // MemoryStore represents an in-memory storage solution for snippets
 type MemoryStore struct {
-	snippets map[string]*models.Snippet
-	mutex    sync.RWMutex
-	logger   *zap.Logger
+	snippets   map[string]*models.Snippet
+	snippetsMu sync.RWMutex
+	tags       map[string]int
+	tagsMu     sync.RWMutex
+	logger     *zap.Logger
 }
 
 // NewMemoryStore creates a new in-memory store
@@ -30,14 +32,17 @@ func NewMemoryStore(logger *zap.Logger) *MemoryStore {
 
 	return &MemoryStore{
 		snippets: make(map[string]*models.Snippet),
+		tags:     make(map[string]int),
 		logger:   logger.Named("store"),
 	}
 }
 
 // CreateSnippet adds a new snippet to the store
 func (s *MemoryStore) CreateSnippet(snippet *models.Snippet) error {
-	s.mutex.Lock()
-	defer s.mutex.Unlock()
+	s.snippetsMu.Lock()
+	defer s.snippetsMu.Unlock()
+
+	s.CreateTags(snippet.Tags...)
 
 	s.logger.Sugar().Debugw("snippet saved", "snippet.id", snippet.ID)
 	s.snippets[snippet.ID] = snippet
@@ -49,8 +54,8 @@ func (s *MemoryStore) CreateSnippet(snippet *models.Snippet) error {
 func (s *MemoryStore) GetSnippet(id string) (*models.Snippet, error) {
 	sugar := s.logger.Sugar()
 
-	s.mutex.RLock()
-	defer s.mutex.RUnlock()
+	s.snippetsMu.RLock()
+	defer s.snippetsMu.RUnlock()
 
 	snippet, ok := s.snippets[id]
 	if !ok {
@@ -67,8 +72,8 @@ func (s *MemoryStore) GetSnippet(id string) (*models.Snippet, error) {
 func (s *MemoryStore) UpdateSnippet(id string, updates map[string]any) (*models.Snippet, error) {
 	sugar := s.logger.Sugar()
 
-	s.mutex.Lock()
-	defer s.mutex.Unlock()
+	s.snippetsMu.Lock()
+	defer s.snippetsMu.Unlock()
 
 	snippet, ok := s.snippets[id]
 	if !ok {
@@ -94,7 +99,7 @@ func (s *MemoryStore) UpdateSnippet(id string, updates map[string]any) (*models.
 		snippet.Language = language
 	}
 
-	// Check for the inerface{} first, then type cast to []string
+	// Check for the interface{} first, then type cast to []string
 	if tagsInterface, ok := updates["tags"]; ok {
 		if tagsSlice, ok := tagsInterface.([]any); ok {
 			tags := make([]string, len(tagsSlice))
@@ -103,6 +108,8 @@ func (s *MemoryStore) UpdateSnippet(id string, updates map[string]any) (*models.
 					tags[i] = str
 				}
 			}
+
+			s.updateTags( /* old tags */ snippet.Tags /* new tags */, tags)
 			snippet.Tags = tags
 		}
 	}
@@ -121,13 +128,16 @@ func (s *MemoryStore) UpdateSnippet(id string, updates map[string]any) (*models.
 func (s *MemoryStore) DeleteSnippet(id string) error {
 	sugar := s.logger.Sugar()
 
-	s.mutex.Lock()
-	defer s.mutex.Unlock()
+	s.snippetsMu.Lock()
+	defer s.snippetsMu.Unlock()
 
-	if _, ok := s.snippets[id]; !ok {
+	snippet, ok := s.snippets[id]
+	if !ok {
 		sugar.Debugw("snippet not found", "snippet.id", id)
 		return ErrSnippetNotFound
 	}
+
+	s.DeleteTags(snippet.Tags...)
 
 	sugar.Debugw("deleted snippet", "snippet.id", id)
 	delete(s.snippets, id)
@@ -137,8 +147,8 @@ func (s *MemoryStore) DeleteSnippet(id string) error {
 
 // ListSnippets returns all snippets, optionally filtered by tags or a query
 func (s *MemoryStore) ListSnippets(tags []string, query string) []*models.Snippet {
-	s.mutex.RLock()
-	defer s.mutex.RUnlock()
+	s.snippetsMu.RLock()
+	defer s.snippetsMu.RUnlock()
 
 	var (
 		results = make([]*models.Snippet, 0, len(s.snippets))
@@ -167,6 +177,95 @@ func (s *MemoryStore) ListSnippets(tags []string, query string) []*models.Snippe
 	sugar.Debugw("fetched snippets", "count", len(results), "tags", tags, "query", query)
 
 	return results
+}
+
+// CreateTags adds new tags to the store, incrementing its reference counter by 1
+func (s *MemoryStore) CreateTags(tags ...string) {
+	s.tagsMu.Lock()
+	defer s.tagsMu.Unlock()
+
+	for _, tag := range tags {
+		if _, ok := s.tags[tag]; !ok {
+			s.tags[tag] += 1
+			s.logger.Sugar().Debugw("tag saved", "tag", tag)
+		}
+	}
+}
+
+// ListTags fetches all tags in the store with a valid reference count
+func (s *MemoryStore) ListTags() []string {
+	s.tagsMu.RLock()
+	defer s.tagsMu.RUnlock()
+
+	var (
+		sugar   = s.logger.Sugar()
+		results = []string{}
+	)
+
+	for key, value := range s.tags {
+		if value >= 1 {
+			results = append(results, key)
+		}
+	}
+
+	sugar.Debugw("fetched tags", "count", len(results))
+
+	return results
+}
+
+// DeleteTags deletes tags with a non-zero reference count. If a tag is
+// references by at least one or more snippets, it won't be deleted
+func (s *MemoryStore) DeleteTags(tag ...string) {
+	s.tagsMu.Lock()
+	defer s.tagsMu.Unlock()
+
+	for tag, count := range s.tags {
+		// Decrement a tag's reference counter if it has a non-zero reference count
+		if count >= 1 {
+			s.tags[tag]--
+
+			return
+		}
+
+		delete(s.tags, tag)
+	}
+}
+
+// updateTags updates tags depending on the differences between old and changes.
+//
+// If a value is in changes and not in old, then the tag will be added to the
+// store. Otherwise, if a value is not in changes and in old, then the tag will
+// be removed.
+func (s *MemoryStore) updateTags(old, changes []string) {
+	s.tagsMu.Lock()
+	defer s.tagsMu.Unlock()
+
+	var (
+		oldSet            = make(map[string]struct{})
+		changeSet         = make(map[string]struct{})
+		markedForDeletion = []string{}
+	)
+
+	// Create a set from the old set of tags
+	for _, tag := range old {
+		oldSet[tag] = struct{}{}
+	}
+
+	// Create a set from the new tag changes
+	for _, change := range changes {
+		changeSet[change] = struct{}{}
+	}
+
+	for tag := range oldSet {
+		// If a tag is in old but not in changes, then it will be removed
+		if _, ok := changeSet[tag]; !ok {
+			markedForDeletion = append(markedForDeletion, tag)
+		} else {
+			s.CreateTags(tag)
+		}
+	}
+
+	s.DeleteTags(markedForDeletion...)
 }
 
 // hasAnyTag reports whether snippet contains any tags

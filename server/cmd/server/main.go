@@ -31,10 +31,12 @@ func main() {
 	var (
 		store          = storage.NewMemoryStore(logger)
 		snippetHandler = api.NewSnippetHandler(store, logger)
+		tagsHandler    = api.NewTagHandler(store, logger)
 		mux            = http.NewServeMux()
 	)
 
 	snippetHandler.RegisterRoutes(mux)
+	tagsHandler.RegisterRoutes(mux)
 
 	// Wrap mux with global-level middleware
 	handler := corsMiddleware(logRequestsMiddleware(mux, logger))
