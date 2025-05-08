@@ -1,19 +1,19 @@
-import React, { useState } from "react";
+import { useState, ReactNode } from "react";
 
 interface CopyButtonProps {
-  text: string;
   className?: string;
-  children?: React.ReactNode;
+  text: string;
   successMessage?: string;
   buttonText?: string;
+  children?: ReactNode;
 }
 
 export default function CopyButton({
-  text,
   className = "",
-  children,
+  text,
   successMessage = "Copied!",
   buttonText = "Copy",
+  children,
 }: CopyButtonProps) {
   const [isCopied, setIsCopied] = useState(false);
 
@@ -22,10 +22,10 @@ export default function CopyButton({
       await navigator.clipboard.writeText(text);
       setIsCopied(true);
 
-      // Reset the copied state after 2 seconds
+      const timeout = 3 * 1000;
       setTimeout(() => {
         setIsCopied(false);
-      }, 2000);
+      }, timeout);
     } catch (error) {
       console.error("Failed to copy text: ", error);
     }

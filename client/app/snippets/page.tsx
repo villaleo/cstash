@@ -1,23 +1,14 @@
 "use client";
 
-import {
-  useState,
-  useEffect,
-  useCallback,
-  MouseEventHandler,
-  MouseEvent,
-} from "react";
+import { useState, useEffect, useCallback, MouseEvent } from "react";
 
 import api from "@/lib/api";
 import { Snippet } from "@/lib/types";
 import { urlEncodeQueryArray } from "@/lib/common";
-import SnippetListItem from "./SnippetsListItem";
-import Dropdown from "./Dropdown";
-import SearchBar from "./SearchBar";
-import TagIcon from "../icons/TagIcon";
-import ArrowsUpDownIcon from "../icons/ArrowsUpDownIcon";
-import FilterIcon from "../icons/FilterIcon";
-import MultipleChoiceDropdown from "./MultipleChoiceDropdown";
+import SnippetListItem from "@/components/snippets/snippets-list-item";
+import Picker from "@/components/ui/picker";
+import SearchBar from "@/components/ui/search-bar";
+import { ArrowsUpDownIcon, FilterIcon, TagIcon } from "@/components/ui/icons";
 
 export default function SnippetsList() {
   const [snippets, setSnippets] = useState<Snippet[]>([]);
@@ -36,16 +27,10 @@ export default function SnippetsList() {
 
     try {
       setLoading(true);
-      const snippetsResponse = await api.get(
-        `/snippets?q=${query}&${tagsQuery}`
-      );
+      const snippetsResponse = await api.get(`/snippets?q=${query}&${tagsQuery}`);
 
       // Sort snippets consistently
-      const sortedSnippets = sortSnippets(
-        snippetsResponse.data,
-        sortBy,
-        sortOrder
-      );
+      const sortedSnippets = sortSnippets(snippetsResponse.data, sortBy, sortOrder);
       setSnippets(sortedSnippets);
 
       const tagsResponse = await api.get("/tags");
@@ -70,9 +55,7 @@ export default function SnippetsList() {
   const updateSnippetLocally = useCallback(
     (updatedSnippet: Snippet) => {
       setSnippets((prevSnippets) => {
-        const updated = prevSnippets.map((snippet) =>
-          snippet.id === updatedSnippet.id ? updatedSnippet : snippet
-        );
+        const updated = prevSnippets.map((snippet) => (snippet.id === updatedSnippet.id ? updatedSnippet : snippet));
         // Re-sort to maintain consistency
         return sortSnippets(updated, sortBy, sortOrder);
       });
@@ -81,11 +64,7 @@ export default function SnippetsList() {
   );
 
   // Helper function to sort snippets consistently
-  const sortSnippets = (
-    snippets: Snippet[],
-    field: keyof Snippet,
-    direction: "asc" | "desc"
-  ) => {
+  const sortSnippets = (snippets: Snippet[], field: keyof Snippet, direction: "asc" | "desc") => {
     return [...snippets].sort((a, b) => {
       let comparison = 0;
 
@@ -93,12 +72,8 @@ export default function SnippetsList() {
       if (typeof a[field] === "string" && typeof b[field] === "string") {
         comparison = (a[field] as string).localeCompare(b[field] as string);
       } else if (a[field] instanceof Date && b[field] instanceof Date) {
-        comparison =
-          (a[field] as Date).getTime() - (b[field] as Date).getTime();
-      } else if (
-        typeof a[field] === "boolean" &&
-        typeof b[field] === "boolean"
-      ) {
+        comparison = (a[field] as Date).getTime() - (b[field] as Date).getTime();
+      } else if (typeof a[field] === "boolean" && typeof b[field] === "boolean") {
         comparison = a[field] === b[field] ? 0 : a[field] ? 1 : -1;
       } else {
         // Fallback for other types
@@ -115,9 +90,7 @@ export default function SnippetsList() {
   }, [fetchSnippets]);
 
   if (loading && snippets.length === 0) {
-    return (
-      <p className="text-gray-500 text-center py-8">Loading snippets...</p>
-    );
+    return <p className="text-gray-500 text-center py-8">Loading snippets...</p>;
   }
 
   if (error) {
@@ -165,15 +138,9 @@ export default function SnippetsList() {
     };
 
     return (
-      <Dropdown
-        opts={Object.values(filterOptLabel)}
-        onOptSelect={handleOptSelect}
-      >
-        <FilterIcon
-          className="p-1 px-2 border border-gray-200 rounded"
-          label={filterOptLabel[sortBy]}
-        />
-      </Dropdown>
+      <Picker opts={Object.values(filterOptLabel)} onSelect={handleOptSelect}>
+        <FilterIcon className="p-1 px-2 border border-gray-200 rounded" label={filterOptLabel[sortBy]} />
+      </Picker>
     );
   };
 
@@ -183,7 +150,7 @@ export default function SnippetsList() {
       desc: "Descending",
     };
 
-    const handleOptSelect = (event: MouseEvent<HTMLElement>, opt: string) => {
+    const handleOptSelect = (_event: MouseEvent<HTMLElement>, opt: string) => {
       switch (opt) {
         case "Ascending":
           setSortOrder("asc");
@@ -198,25 +165,19 @@ export default function SnippetsList() {
     };
 
     return (
-      <Dropdown
-        opts={["Ascending", "Descending"]}
-        onOptSelect={handleOptSelect}
-      >
-        <ArrowsUpDownIcon
-          className="p-1 px-2 border border-gray-200 rounded"
-          label={orderOptLabel[sortOrder]}
-        />
-      </Dropdown>
+      <Picker opts={["Ascending", "Descending"]} onSelect={handleOptSelect}>
+        <ArrowsUpDownIcon className="p-1 px-2 border border-gray-200 rounded" label={orderOptLabel[sortOrder]} />
+      </Picker>
     );
   };
 
   const TagButton = () => {
     return (
       <div>
-        <MultipleChoiceDropdown
+        <Picker
           value={searchTags}
           opts={tags}
-          onSelect={(event, tag) => {
+          onSelect={(_event, tag) => {
             if (searchTags.includes(tag)) {
               const index = searchTags.indexOf(tag)!;
               const updatedSearchTags = [...searchTags];
@@ -231,7 +192,7 @@ export default function SnippetsList() {
           }}
         >
           <TagIcon className="p-2 border border-gray-200 rounded" />
-        </MultipleChoiceDropdown>
+        </Picker>
 
         {searchTags.length > 0 && (
           <span
@@ -255,11 +216,7 @@ export default function SnippetsList() {
       <div className="flex justify-between md:mb-4">
         <div className="flex items-center gap-2 w-[100%] md:w-[50%]">
           <TagButton />
-          <SearchBar
-            className="w-[100%]"
-            placeholder="Search snippets..."
-            onChange={handleSearchChanges}
-          />
+          <SearchBar className="w-[100%]" placeholder="Search snippets..." onChange={handleSearchChanges} />
         </div>
         {/* Inline filter and order buttons are hidden on mobile */}
         <div className="hidden md:flex items-center gap-2">
@@ -279,12 +236,7 @@ export default function SnippetsList() {
       ) : (
         <ul className="space-y-4">
           {snippets.map((snippet) => (
-            <SnippetListItem
-              key={snippet.id}
-              snippet={snippet}
-              onUpdate={updateSnippetLocally}
-              refreshList={fetchSnippets}
-            />
+            <SnippetListItem key={snippet.id} snippet={snippet} onUpdate={updateSnippetLocally} refreshList={fetchSnippets} />
           ))}
         </ul>
       )}

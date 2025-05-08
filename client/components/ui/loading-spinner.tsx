@@ -1,4 +1,8 @@
-export default function ProgressIndicator({ label }: { label: string }) {
+export default function LoadingSpinner({
+  label = "Loading..",
+}: {
+  label?: string;
+}) {
   return (
     <div className="text-xs text-blue-500 mt-2 flex items-center">
       <svg className="animate-spin h-3 w-3 mr-1" viewBox="0 0 24 24">

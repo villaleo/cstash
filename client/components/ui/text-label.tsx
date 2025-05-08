@@ -1,36 +1,22 @@
-import {
-  useState,
-  useRef,
-  useEffect,
-  MouseEvent,
-  ChangeEvent,
-  KeyboardEvent,
-} from "react";
+"use client";
+import { useState, useRef, useEffect, ChangeEvent, KeyboardEvent } from "react";
 
-interface EditableLabelProps {
+interface TextLabelProps {
   className?: string;
   text: string;
   placeholder?: string;
   disabled?: boolean;
-  onChange: (nextText: string) => void;
+  onChange: (changes: string) => void;
   width?: string;
 }
 
-export default function EditableLabel({
-  className,
-  text,
-  placeholder,
-  disabled,
-  onChange,
-  width,
-}: EditableLabelProps) {
+export default function TextLabel({ className, text, placeholder, disabled, onChange, width }: TextLabelProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [value, setValue] = useState(text);
   const [elementWidth, setElementWidth] = useState<string>(width || "auto");
   const inputRef = useRef<HTMLInputElement>(null);
   const spanRef = useRef<HTMLSpanElement>(null);
 
-  // Reset value when text prop changes
   useEffect(() => setValue(text), [text]);
 
   // Calculate and set width when component mounts or text changes

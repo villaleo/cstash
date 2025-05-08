@@ -2,15 +2,13 @@
 
 import { MouseEvent, useState } from "react";
 
-import api from "@/lib/api";
 import { Snippet } from "@/lib/types";
-import EditableLabel from "./EditableLabel";
-import StarIcon from "@/app/icons/StarIcon";
-import CopyButton from "./CopyButton";
-import Dropdown from "./Dropdown";
-import ProgressIndicator from "./ProgressIndicator";
-import useStatefulBool from "@/app/hooks/statefulBool";
-import EllipsesIcon from "@/app/icons/EllipsesIcon";
+import TextLabel from "../ui/text-label";
+import { EllipsesIcon, StarIcon } from "../ui/icons";
+import CopyButton from "../ui/copy-button";
+import Picker from "../ui/picker";
+import LoadingSpinner from "../ui/loading-spinner";
+import useBool from "@/lib/hooks/use-bool";
 
 interface SnippetListItemProps {
   snippet: Snippet;
@@ -27,23 +25,15 @@ interface SnippetUpdateableFields {
   isFavorite?: boolean;
 }
 
-export default function SnippetListItem({
-  snippet,
-  onUpdate,
-  refreshList,
-}: SnippetListItemProps) {
-  const [isDeleted, toggleIsDeleted] = useStatefulBool(false);
-  const [isUpdating, toggleIsUpdating] = useStatefulBool(false);
+export default function SnippetListItem({ snippet, onUpdate, refreshList }: SnippetListItemProps) {
+  const [isDeleted, toggleIsDeleted] = useBool();
+  const [isUpdating, toggleIsUpdating] = useBool();
+  const [isExpanded, toggleIsExpanded] = useBool();
   const [error, setError] = useState<string | null>(null);
   const [localSnippet, setLocalSnippet] = useState<Snippet>(snippet);
-  const [isExpanded, toggleIsExpanded] = useStatefulBool(false);
   const [editedContent, setEditedContent] = useState(snippet.content);
 
-  const dropdownOpts = [
-    "Edit",
-    localSnippet.isFavorite ? "Undo Favorite" : "Favorite",
-    "Delete",
-  ];
+  const dropdownOpts = ["Edit", localSnippet.isFavorite ? "Undo Favorite" : "Favorite", "Delete"];
 
   // Only update specific fields, but return the full updated snippet
   const updateSnippet = async (updates: SnippetUpdateableFields) => {
@@ -57,11 +47,11 @@ export default function SnippetListItem({
       setLocalSnippet(optimisticUpdate);
 
       // Send update to server
-      const response = await api.put(`/snippets/${snippet.id}`, updates);
+      // const response = await api.put(`/snippets/${snippet.id}`, updates);
 
       // Update with actual server response if available, otherwise keep optimistic update
-      const updatedSnippet = response.data || optimisticUpdate;
-      setLocalSnippet(updatedSnippet);
+      // const updatedSnippet = response.data || optimisticUpdate;
+      // setLocalSnippet(updatedSnippet);
 
       // If content is being edited, update our local state
       if (updates.content) {
@@ -69,7 +59,7 @@ export default function SnippetListItem({
       }
 
       // Notify parent about the update
-      onUpdate(updatedSnippet);
+      // onUpdate(updatedSnippet);
     } catch (err: any) {
       // Revert to original on error
       setLocalSnippet(snippet);
@@ -89,7 +79,7 @@ export default function SnippetListItem({
     if (isUpdating) return;
 
     try {
-      await api.delete(`/snippets/${snippet.id}`);
+      // await api.delete(`/snippets/${snippet.id}`);
       toggleIsDeleted(true);
     } catch (err: any) {
       setError(err.message);
@@ -138,10 +128,7 @@ export default function SnippetListItem({
     return (
       <li className="border border-red-200 bg-red-50 rounded-lg p-4">
         <p className="text-red-500">Error: {error}</p>
-        <button
-          onClick={() => setError(null)}
-          className="text-sm text-red-700 underline mt-2"
-        >
+        <button onClick={() => setError(null)} className="text-sm text-red-700 underline mt-2">
           Dismiss
         </button>
       </li>
@@ -150,9 +137,7 @@ export default function SnippetListItem({
 
   const snippetItem = (
     <li
-      className={`border ${
-        isUpdating ? "border-blue-200 bg-blue-50" : "border-gray-200"
-      }
+      className={`border ${isUpdating ? "border-blue-200 bg-blue-50" : "border-gray-200"}
       rounded-lg p-4 hover:shadow-md transition-all duration-200 cursor-pointer
       ${isExpanded ? "shadow-lg" : ""}`}
       onClick={() => toggleIsExpanded()}
@@ -161,12 +146,7 @@ export default function SnippetListItem({
         <h2 className="flex gap-2 items-center text-lg font-medium text-gray-800">
           {/* Stop propagation to prevent expansion when editing the title */}
           <div onClick={(e) => e.stopPropagation()}>
-            <EditableLabel
-              text={localSnippet.title}
-              placeholder="Snippet Title"
-              onChange={updateTitle}
-              disabled={isUpdating}
-            />
+            <TextLabel text={localSnippet.title} placeholder="Snippet Title" onChange={updateTitle} disabled={isUpdating} />
           </div>
           <StarIcon
             onClick={toggleFavorite}
@@ -175,9 +155,9 @@ export default function SnippetListItem({
             } hover:cursor-pointer inline-block transition-colors duration-200`}
           />
         </h2>
-        <Dropdown opts={dropdownOpts} onOptSelect={handleOnOptSelect}>
+        <Picker opts={dropdownOpts} onSelect={handleOnOptSelect}>
           <EllipsesIcon />
-        </Dropdown>
+        </Picker>
       </div>
 
       <p className="text-gray-500 mt-5">{localSnippet.description}</p>
@@ -191,10 +171,7 @@ export default function SnippetListItem({
       >
         <div className="pt-1">
           <div className="flex h-0 justify-end items-end gap-2 mb-2 translate-y-11 -translate-x-3">
-            <CopyButton
-              text={localSnippet.content}
-              className="px-3 py-1 rounded text-xs font-medium"
-            />
+            <CopyButton text={localSnippet.content} className="px-3 py-1 rounded text-xs font-medium" />
             <button
               onClick={saveContent}
               disabled={isUpdating || editedContent === localSnippet.content}
@@ -225,24 +202,17 @@ export default function SnippetListItem({
 
       <div className="mt-4 flex justify-between items-center">
         <div className="flex flex-wrap gap-2">
-          <span className="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded">
-            {localSnippet.language}
-          </span>
+          <span className="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded">{localSnippet.language}</span>
           {localSnippet.tags.map((tag) => (
-            <span
-              key={tag}
-              className="bg-gray-100 text-gray-600 text-xs px-2 py-1 rounded"
-            >
+            <span key={tag} className="bg-gray-100 text-gray-600 text-xs px-2 py-1 rounded">
               {tag}
             </span>
           ))}
         </div>
-        <span className="text-gray-400 text-sm">
-          {new Date(localSnippet.createdAt).toDateString()}
-        </span>
+        <span className="text-gray-400 text-sm">{new Date(localSnippet.createdAt).toDateString()}</span>
       </div>
 
-      {isUpdating && <ProgressIndicator label="Saving changes..." />}
+      {isUpdating && <LoadingSpinner label="Saving changes..." />}
     </li>
   );
 
