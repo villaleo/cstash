@@ -93,13 +93,14 @@ func (h *SnippetHandler) ListSnippets(w http.ResponseWriter, r *http.Request) {
 	var (
 		tagsQuery = r.URL.Query()["tags"]
 		query     = r.URL.Query().Get("q")
-		results   []*models.Snippet
+		results   = []*models.Snippet{}
 		sugar     = h.logger.Sugar()
 	)
 
 	results = h.store.ListSnippets(tagsQuery, query)
 
-	if len(results) == 0 {
+	if len(results) == 0 && query != "" {
+		sugar.Debugf("couldn't find snippets for query %q", query)
 		w.WriteHeader(http.StatusNotFound)
 	}
 
