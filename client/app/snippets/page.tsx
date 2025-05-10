@@ -1,145 +1,48 @@
 "use client";
 
-import { useState, useEffect, useCallback, MouseEvent } from "react";
+import { useState, useEffect, useCallback, MouseEvent, Suspense } from "react";
 
 import api from "@/lib/api";
 import { Snippet } from "@/lib/types";
-import { urlEncodeQueryArray } from "@/lib/common";
+
 import SnippetListItem from "@/components/snippets/snippets-list-item";
 import Picker from "@/components/ui/picker";
 import SearchBar from "@/components/ui/search-bar";
 import { ArrowsUpDownIcon, FilterIcon, TagIcon } from "@/components/ui/icons";
+import { GroupKey, OrderKey, useSnippets, useUpdateSnippet } from "@/lib/hooks/queries/use-snippets";
 
-export default function SnippetsList() {
-  const [snippets, setSnippets] = useState<Snippet[]>([]);
-  const [tags, setTags] = useState<string[]>([]);
-  const [searchValue, setSearchValue] = useState("");
+export default function SnippetsPage() {
   const [searchTags, setSearchTags] = useState<string[]>([]);
-  const [sortBy, setSortBy] = useState<keyof Snippet>("createdAt");
-  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [tags, setTags] = useState<string[]>(["Algorithms", "Data Structures"]);
 
-  // Function to fetch all snippets
-  const fetchSnippets = useCallback(async () => {
-    const tagsQuery = urlEncodeQueryArray("tags", searchTags);
-    const query = encodeURI(searchValue);
+  const [searchValue, setSearchValue] = useState("");
+  const [groupBy, setGroupBy] = useState<GroupKey>("Last Modified");
+  const [order, setOrder] = useState<OrderKey>("Descending Order");
+  const {
+    data: snippets,
+    refetch: refetchSnippets,
+    isFetching: isFetchingSnippets,
+    isRefetching: isRefetchingSnippets,
+    isError: isSnippetsError,
+    error: snippetsError,
+  } = useSnippets({ query: searchValue, tags, group: groupBy, order: order });
 
-    try {
-      setLoading(true);
-      const snippetsResponse = await api.get(`/snippets?q=${query}&${tagsQuery}`);
-
-      // Sort snippets consistently
-      const sortedSnippets = sortSnippets(snippetsResponse.data, sortBy, sortOrder);
-      setSnippets(sortedSnippets);
-
-      const tagsResponse = await api.get("/tags");
-      const tags: string[] = tagsResponse.data;
-
-      // Sort tags alphabetically
-      const sortedTags = tags.toSorted((a, b) => a.localeCompare(b));
-      setTags(sortedTags);
-    } catch (err: any) {
-      if (err.status === 404) {
-        setSnippets([]);
-        return;
-      }
-
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
-  }, [sortBy, sortOrder, searchValue, searchTags]);
-
-  // Function to update a single snippet in the local state
-  const updateSnippetLocally = useCallback(
-    (updatedSnippet: Snippet) => {
-      setSnippets((prevSnippets) => {
-        const updated = prevSnippets.map((snippet) => (snippet.id === updatedSnippet.id ? updatedSnippet : snippet));
-        // Re-sort to maintain consistency
-        return sortSnippets(updated, sortBy, sortOrder);
-      });
-    },
-    [sortBy, sortOrder]
-  );
-
-  // Helper function to sort snippets consistently
-  const sortSnippets = (snippets: Snippet[], field: keyof Snippet, direction: "asc" | "desc") => {
-    return [...snippets].sort((a, b) => {
-      let comparison = 0;
-
-      // Handle different field types
-      if (typeof a[field] === "string" && typeof b[field] === "string") {
-        comparison = (a[field] as string).localeCompare(b[field] as string);
-      } else if (a[field] instanceof Date && b[field] instanceof Date) {
-        comparison = (a[field] as Date).getTime() - (b[field] as Date).getTime();
-      } else if (typeof a[field] === "boolean" && typeof b[field] === "boolean") {
-        comparison = a[field] === b[field] ? 0 : a[field] ? 1 : -1;
-      } else {
-        // Fallback for other types
-        comparison = String(a[field]).localeCompare(String(b[field]));
-      }
-
-      return direction === "asc" ? comparison : -comparison;
-    });
-  };
-
-  // Initial fetch
-  useEffect(() => {
-    fetchSnippets();
-  }, [fetchSnippets]);
-
-  if (loading && snippets.length === 0) {
-    return <p className="text-gray-500 text-center py-8">Loading snippets...</p>;
-  }
-
-  if (error) {
-    return <p className="text-red-500 text-center py-8">Error: {error}</p>;
-  }
-
-  const FilterButton = () => {
-    const filterOptLabel: Record<string, string> = {
-      isFavorite: "Favorites",
+  const GroupButton = () => {
+    const groupByLabel: Record<string, GroupKey> = {
+      isFavorite: "Favorite",
       title: "Title",
-      description: "Description",
-      content: "Content",
       language: "Language",
-      createdAt: "Date Created",
-      updatedAt: "Date Updated",
+      createdAt: "Created On",
+      updatedAt: "Last Modified",
     };
 
-    const handleOptSelect = (event: MouseEvent<HTMLElement>, opt: string) => {
-      switch (opt) {
-        case "Favorites":
-          setSortBy("isFavorite");
-          break;
-        case "Title":
-          setSortBy("title");
-          break;
-        case "Description":
-          setSortBy("description");
-          break;
-        case "Content":
-          setSortBy("content");
-          break;
-        case "Language":
-          setSortBy("language");
-          break;
-        case "Date Created":
-          setSortBy("createdAt");
-          break;
-        case "Date Updated":
-          setSortBy("updatedAt");
-          break;
-        default:
-          setSortBy("createdAt");
-          break;
-      }
+    const handleSelect = (_event: MouseEvent<HTMLElement>, selection: string) => {
+      setGroupBy(selection as GroupKey);
     };
 
     return (
-      <Picker opts={Object.values(filterOptLabel)} onSelect={handleOptSelect}>
-        <FilterIcon className="p-1 px-2 border border-gray-200 rounded" label={filterOptLabel[sortBy]} />
+      <Picker value={groupBy} opts={Object.values(groupByLabel)} onSelect={handleSelect}>
+        <FilterIcon className="p-2 border border-gray-200 rounded" label={groupByLabel[groupBy]} />
       </Picker>
     );
   };
@@ -150,53 +53,42 @@ export default function SnippetsList() {
       desc: "Descending",
     };
 
-    const handleOptSelect = (_event: MouseEvent<HTMLElement>, opt: string) => {
-      switch (opt) {
-        case "Ascending":
-          setSortOrder("asc");
-          break;
-        case "Descending":
-          setSortOrder("desc");
-          break;
-        default:
-          setSortOrder("desc");
-          break;
-      }
+    const handleSelect = (_event: MouseEvent<HTMLElement>, selection: string) => {
+      setOrder(selection as OrderKey);
     };
 
     return (
-      <Picker opts={["Ascending", "Descending"]} onSelect={handleOptSelect}>
-        <ArrowsUpDownIcon className="p-1 px-2 border border-gray-200 rounded" label={orderOptLabel[sortOrder]} />
+      <Picker opts={["Ascending", "Descending"]} onSelect={handleSelect}>
+        <ArrowsUpDownIcon className="p-2 border border-gray-200 rounded" label={orderOptLabel[order]} />
       </Picker>
     );
   };
 
   const TagButton = () => {
+    const handleSelect = (_event: MouseEvent<HTMLElement>, tagSelected: string) => {
+      if (searchTags.includes(tagSelected)) {
+        const index = searchTags.indexOf(tagSelected);
+
+        const updatedSearchTags = [...searchTags];
+        updatedSearchTags.splice(index, 1);
+
+        setSearchTags(updatedSearchTags);
+        return;
+      }
+
+      setSearchTags([...searchTags, tagSelected]);
+    };
+
     return (
       <div>
-        <Picker
-          value={searchTags}
-          opts={tags}
-          onSelect={(_event, tag) => {
-            if (searchTags.includes(tag)) {
-              const index = searchTags.indexOf(tag)!;
-              const updatedSearchTags = [...searchTags];
-
-              updatedSearchTags.splice(index, 1);
-              setSearchTags(updatedSearchTags);
-
-              return;
-            }
-
-            setSearchTags([...searchTags, tag]);
-          }}
-        >
+        <Picker value={searchTags} opts={tags} onSelect={handleSelect}>
           <TagIcon className="p-2 border border-gray-200 rounded" />
         </Picker>
 
+        {/* Badge with the number of selected search tags */}
         {searchTags.length > 0 && (
           <span
-            className={`absolute -translate-y-10 translate-x-6 px-1.5 py-0 bg-red-500 text-white text-xs text-center rounded-full`}
+            className={`absolute -translate-y-10 translate-x-6 px-1.5 py-0 bg-gray-700 text-white text-xs text-center rounded-full`}
           >
             {searchTags.length}
           </span>
@@ -205,41 +97,51 @@ export default function SnippetsList() {
     );
   };
 
-  const handleSearchChanges = (changes: string) => {
+  const handleSearchValueChange = (changes: string) => {
     setSearchValue(changes);
   };
 
   return (
-    <div className="max-w-4xl mx-auto px-4 py-8">
-      <h1 className="text-2xl font-bold text-gray-800 mb-4">Code Stash</h1>
+    <Suspense fallback={<p>Loading..</p>}>
+      <div className="max-w-4xl mx-auto px-4 py-8">
+        <h1 className="text-2xl font-bold text-gray-800 mb-4">SnipStash</h1>
 
-      <div className="flex justify-between md:mb-4">
-        <div className="flex items-center gap-2 w-[100%] md:w-[50%]">
-          <TagButton />
-          <SearchBar className="w-[100%]" placeholder="Search snippets..." onChange={handleSearchChanges} />
+        <div className="flex justify-between md:mb-4">
+          <div className="flex items-center gap-2 w-[100%] md:w-[50%]">
+            <TagButton />
+            <SearchBar className="w-[100%]" placeholder="Search snippets..." onChange={handleSearchValueChange} />
+          </div>
+
+          {/* Inline filter and order buttons are hidden on mobile */}
+          <div className="hidden md:flex items-center gap-1">
+            <GroupButton />
+            <OrderButton />
+          </div>
         </div>
-        {/* Inline filter and order buttons are hidden on mobile */}
-        <div className="hidden md:flex items-center gap-2">
-          <FilterButton />
+
+        {/* Filter and order buttons are on a different line on mobile */}
+        <div className="flex md:hidden items-center gap-1 my-4">
+          <GroupButton />
           <OrderButton />
         </div>
-      </div>
 
-      {/* Filter and order buttons are on a different line on mobile */}
-      <div className="flex md:hidden items-center gap-2 my-4">
-        <FilterButton />
-        <OrderButton />
-      </div>
+        {(isFetchingSnippets || isRefetchingSnippets) && (
+          <p className="text-gray-600 bg-gray-50 text-center rounded py-4">
+            {isFetchingSnippets && "Loading snippets.."}
+            {isRefetchingSnippets && "Reloading snippets.."}
+          </p>
+        )}
 
-      {snippets.length === 0 ? (
-        <p className="text-gray-500 text-center py-4">No snippets found</p>
-      ) : (
-        <ul className="space-y-4">
-          {snippets.map((snippet) => (
-            <SnippetListItem key={snippet.id} snippet={snippet} onUpdate={updateSnippetLocally} refreshList={fetchSnippets} />
-          ))}
-        </ul>
-      )}
-    </div>
+        {isSnippetsError && <p className="text-red-500 text-center py-8">{snippetsError.message}</p>}
+
+        {snippets && (
+          <ul className="space-y-4">
+            {snippets.map((snippet) => (
+              <SnippetListItem key={snippet.id} snippetId={snippet.id} onUpdate={refetchSnippets} />
+            ))}
+          </ul>
+        )}
+      </div>
+    </Suspense>
   );
 }

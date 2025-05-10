@@ -1,6 +1,6 @@
 "use client";
 
-import { MouseEvent, useState } from "react";
+import { MouseEvent, Suspense, useEffect, useState } from "react";
 
 import { Snippet } from "@/lib/types";
 import TextLabel from "../ui/text-label";
@@ -9,212 +9,148 @@ import CopyButton from "../ui/copy-button";
 import Picker from "../ui/picker";
 import LoadingSpinner from "../ui/loading-spinner";
 import useBool from "@/lib/hooks/use-bool";
+import { useSnippet, useUpdateSnippet } from "@/lib/hooks/queries/use-snippets";
 
 interface SnippetListItemProps {
-  snippet: Snippet;
-  onUpdate: (updatedSnippet: Snippet) => void;
-  refreshList: () => Promise<void>;
+  snippetId: string;
+  onUpdate: () => void;
 }
 
-interface SnippetUpdateableFields {
-  title?: string;
-  description?: string;
-  content?: string;
-  language?: string;
-  tags?: string[];
-  isFavorite?: boolean;
-}
+type ActionOption = "Edit" | "Favorite" | "Undo Favorite" | "Delete";
 
-export default function SnippetListItem({ snippet, onUpdate, refreshList }: SnippetListItemProps) {
-  const [isDeleted, toggleIsDeleted] = useBool();
-  const [isUpdating, toggleIsUpdating] = useBool();
+export default function SnippetListItem({ snippetId, onUpdate }: SnippetListItemProps) {
+  const {
+    data: snippet,
+    refetch: refetchSnippet,
+    isFetching: isFetchingSnippet,
+    isRefetching: isRefetchingSnippet,
+    isError: isSnippetError,
+    error: snippetError,
+  } = useSnippet(snippetId);
+  const { mutate: updateSnippet, isPending: isUpdatingSnippet } = useUpdateSnippet();
+
+  const [content, setContent] = useState("");
   const [isExpanded, toggleIsExpanded] = useBool();
-  const [error, setError] = useState<string | null>(null);
-  const [localSnippet, setLocalSnippet] = useState<Snippet>(snippet);
-  const [editedContent, setEditedContent] = useState(snippet.content);
 
-  const dropdownOpts = ["Edit", localSnippet.isFavorite ? "Undo Favorite" : "Favorite", "Delete"];
+  useEffect(() => snippet && setContent(snippet.content), [snippet]);
 
-  // Only update specific fields, but return the full updated snippet
-  const updateSnippet = async (updates: SnippetUpdateableFields) => {
-    if (isUpdating) return;
-
-    try {
-      toggleIsUpdating(true);
-
-      // Optimistic update - update locally first
-      const optimisticUpdate = { ...localSnippet, ...updates };
-      setLocalSnippet(optimisticUpdate);
-
-      // Send update to server
-      // const response = await api.put(`/snippets/${snippet.id}`, updates);
-
-      // Update with actual server response if available, otherwise keep optimistic update
-      // const updatedSnippet = response.data || optimisticUpdate;
-      // setLocalSnippet(updatedSnippet);
-
-      // If content is being edited, update our local state
-      if (updates.content) {
-        setEditedContent(updates.content);
-      }
-
-      // Notify parent about the update
-      // onUpdate(updatedSnippet);
-    } catch (err: any) {
-      // Revert to original on error
-      setLocalSnippet(snippet);
-      setError(err.message);
-
-      // On serious errors, refresh the whole list as fallback
-      if (err.status >= 500) {
-        await refreshList();
-      }
-    } finally {
-      toggleIsUpdating(false);
-    }
+  const toggleFavorite = (event: MouseEvent) => {
+    event.stopPropagation();
+    updateSnippet({ id: snippetId, updates: { isFavorite: !snippet?.isFavorite } });
+    setTimeout(onUpdate, 300);
   };
 
-  const deleteSnippet = async () => {
-    // Can't delete something that is being updated
-    if (isUpdating) return;
-
-    try {
-      // await api.delete(`/snippets/${snippet.id}`);
-      toggleIsDeleted(true);
-    } catch (err: any) {
-      setError(err.message);
-
-      if (err.status >= 500) {
-        await refreshList();
-      }
-    }
+  const updateTitle = (title: string) => {
+    updateSnippet({ id: snippetId, updates: { title } });
+    setTimeout(onUpdate, 300);
   };
 
-  const toggleFavorite = (e: React.MouseEvent) => {
-    // Prevent the click from toggling expansion
-    e.stopPropagation();
-    updateSnippet({ isFavorite: !localSnippet.isFavorite });
+  const updateContent = () => {
+    updateSnippet({ id: snippetId, updates: { content } });
+    setTimeout(onUpdate, 300);
   };
 
-  const updateTitle = (newTitle: string) => {
-    if (newTitle !== localSnippet.title) {
-      updateSnippet({ title: newTitle });
-    }
-  };
-
-  const saveContent = () => {
-    if (editedContent !== localSnippet.content) {
-      updateSnippet({ content: editedContent });
-    }
-  };
-
-  const handleOnOptSelect = (event: MouseEvent<HTMLElement>, opt: string) => {
-    switch (opt) {
+  const handleSelect = (event: MouseEvent<HTMLElement>, actionSelected: string) => {
+    switch (actionSelected as ActionOption) {
       case "Edit":
-        // Handle editing
         break;
       case "Favorite":
       case "Undo Favorite":
         toggleFavorite(event);
         break;
       case "Delete":
-        deleteSnippet();
-      default:
         break;
     }
   };
 
-  if (error) {
-    return (
-      <li className="border border-red-200 bg-red-50 rounded-lg p-4">
-        <p className="text-red-500">Error: {error}</p>
-        <button onClick={() => setError(null)} className="text-sm text-red-700 underline mt-2">
-          Dismiss
-        </button>
-      </li>
-    );
-  }
+  const options = ["Edit", snippet?.isFavorite ? "Undo Favorite" : "Favorite", "Delete"];
 
-  const snippetItem = (
-    <li
-      className={`border ${isUpdating ? "border-blue-200 bg-blue-50" : "border-gray-200"}
-      rounded-lg p-4 hover:shadow-md transition-all duration-200 cursor-pointer
-      ${isExpanded ? "shadow-lg" : ""}`}
-      onClick={() => toggleIsExpanded()}
-    >
-      <div className="flex justify-between items-center">
-        <h2 className="flex gap-2 items-center text-lg font-medium text-gray-800">
-          {/* Stop propagation to prevent expansion when editing the title */}
-          <div onClick={(e) => e.stopPropagation()}>
-            <TextLabel text={localSnippet.title} placeholder="Snippet Title" onChange={updateTitle} disabled={isUpdating} />
+  return (
+    <Suspense fallback={<>Loading..</>}>
+      {snippet && (
+        <li
+          className={`border border-gray-200 rounded-lg p-4 hover:shadow-md transition-all duration-200 cursor-pointer ${
+            isExpanded && "shadow-lg"
+          }`}
+          onClick={() => toggleIsExpanded()}
+        >
+          <div className="flex justify-between items-center">
+            <h2 className="flex gap-2 items-center text-lg font-medium text-gray-800">
+              <div onClick={(event) => event.stopPropagation()}>
+                <TextLabel
+                  text={snippet.title}
+                  placeholder="Snippet Title"
+                  onChange={updateTitle}
+                  disabled={isFetchingSnippet || isRefetchingSnippet}
+                />
+              </div>
+              <StarIcon
+                onClick={toggleFavorite}
+                className={`${
+                  snippet.isFavorite ? "text-yellow-500" : "text-gray-300"
+                } hover:cursor-pointer inline-block transition-colors duration-200`}
+              />
+            </h2>
+            <Picker opts={options} onSelect={handleSelect}>
+              <EllipsesIcon />
+            </Picker>
           </div>
-          <StarIcon
-            onClick={toggleFavorite}
-            className={`${
-              localSnippet.isFavorite ? "text-yellow-500" : "text-gray-300"
-            } hover:cursor-pointer inline-block transition-colors duration-200`}
-          />
-        </h2>
-        <Picker opts={dropdownOpts} onSelect={handleOnOptSelect}>
-          <EllipsesIcon />
-        </Picker>
-      </div>
 
-      <p className="text-gray-500 mt-5">{localSnippet.description}</p>
+          <p className="text-gray-500 mt-5">{snippet.description}</p>
 
-      {/* Expandable Content Section */}
-      <div
-        className={`overflow-hidden transition-all duration-400 ease-in-out ${
-          isExpanded ? "max-h-100 opacity-100" : "max-h-0 opacity-0"
-        }`}
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="pt-1">
-          <div className="flex h-0 justify-end items-end gap-2 mb-2 translate-y-11 -translate-x-3">
-            <CopyButton text={localSnippet.content} className="px-3 py-1 rounded text-xs font-medium" />
-            <button
-              onClick={saveContent}
-              disabled={isUpdating || editedContent === localSnippet.content}
-              className={`px-3 py-1 rounded text-xs font-medium
+          {/* Expandable Content Section */}
+          <div
+            className={`overflow-hidden transition-all duration-400 ease-in-out ${
+              isExpanded ? "max-h-100 opacity-100" : "max-h-0 opacity-0"
+            }`}
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="pt-1">
+              <div className="flex h-0 justify-end items-end gap-2 mb-2 translate-y-11 -translate-x-3">
+                <CopyButton text={snippet.content} className="px-3 py-1 rounded text-xs font-medium" />
+                <button
+                  onClick={updateContent}
+                  disabled={isFetchingSnippet || isRefetchingSnippet}
+                  className={`px-3 py-1 rounded text-xs font-medium
                 ${
-                  isUpdating || editedContent === localSnippet.content
+                  isFetchingSnippet || isRefetchingSnippet
                     ? "bg-gray-200 text-gray-500 cursor-not-allowed"
                     : "bg-blue-500 text-white hover:bg-blue-600"
                 }`}
-            >
-              {isUpdating ? "Saving..." : "Save"}
-            </button>
+                >
+                  {isFetchingSnippet || isRefetchingSnippet ? "Saving..." : "Save"}
+                </button>
+              </div>
+              <textarea
+                id={`content-${snippet.id}`}
+                value={content}
+                onChange={(event) => setContent(event.target.value)}
+                className="w-full h-80 p-2 border border-gray-300 rounded font-mono text-sm resize-none focus:border-blue-500 focus:ring focus:ring-blue-200 focus:ring-opacity-50"
+                placeholder="Add your code snippet here..."
+                spellCheck="false"
+              />
+              <div className="flex mt-2 text-xs text-gray-500 justify-between">
+                <span>{content.split("\n").length} lines</span>
+                <span>{content.length} characters</span>
+              </div>
+            </div>
           </div>
-          <textarea
-            id={`content-${snippet.id}`}
-            value={editedContent}
-            onChange={(e) => setEditedContent(e.target.value)}
-            className="w-full h-80 p-2 border border-gray-300 rounded font-mono text-sm resize-none focus:border-blue-500 focus:ring focus:ring-blue-200 focus:ring-opacity-50"
-            placeholder="Add your code snippet here..."
-            spellCheck="false"
-          />
-          <div className="flex mt-2 text-xs text-gray-500 justify-between">
-            <span>{editedContent.split("\n").length} lines</span>
-            <span>{editedContent.length} characters</span>
+
+          {isUpdatingSnippet && <LoadingSpinner label="Saving changes..." />}
+
+          <div className="mt-4 flex justify-between items-center">
+            <div className="flex flex-wrap gap-2">
+              <span className="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded">{snippet.language}</span>
+              {snippet.tags.map((tag) => (
+                <span key={tag} className="bg-gray-100 text-gray-600 text-xs px-2 py-1 rounded">
+                  {tag}
+                </span>
+              ))}
+            </div>
+            <span className="text-gray-400 text-sm">{new Date(snippet.createdAt).toDateString()}</span>
           </div>
-        </div>
-      </div>
-
-      <div className="mt-4 flex justify-between items-center">
-        <div className="flex flex-wrap gap-2">
-          <span className="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded">{localSnippet.language}</span>
-          {localSnippet.tags.map((tag) => (
-            <span key={tag} className="bg-gray-100 text-gray-600 text-xs px-2 py-1 rounded">
-              {tag}
-            </span>
-          ))}
-        </div>
-        <span className="text-gray-400 text-sm">{new Date(localSnippet.createdAt).toDateString()}</span>
-      </div>
-
-      {isUpdating && <LoadingSpinner label="Saving changes..." />}
-    </li>
+        </li>
+      )}
+    </Suspense>
   );
-
-  return isDeleted ? <></> : snippetItem;
 }
